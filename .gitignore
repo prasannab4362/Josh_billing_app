@@ -7,3 +7,5 @@ dist/
 *.tsbuildinfo
 .vscode/
 *.log
+e2e-out/
+e2e-profile/

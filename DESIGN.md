@@ -335,6 +335,7 @@ All reports: date-range filter, print, Excel/PDF export.
 | **7** | Estimates, orders, challans, conversion; returns (credit/debit notes set off against the bill); expenses (paid from cash/bank, GST credit, in P&L) — done |
 | **8** | Backup/restore (manual, daily automatic ×7, safety copy before restore, open backup as new business), recycle bin with restore, change history viewer — done |
 | **9** | GSTR-1 (all tables + portal JSON) and GSTR-3B (with ITC set-off) — done; multi-firm — done (one file per business, switcher, since Phase 1); users & roles, sync — not started |
+| **10** | Barcodes, QR codes and labels; Excel import/export and bulk update; print designs with UPI QR; line details (batch, dates, model, size, serial); transport/PO details, time on prints, profit while billing, own fields for parties and items — done (see "Added after phase 9") |
 
 Phases 0–4 = a usable billing app.
 
@@ -342,10 +343,18 @@ Phases 0–4 = a usable billing app.
 
 ## 9. Open decisions
 
-1. **Shell:** Electron (simpler, bigger install) vs Tauri (small, needs Rust). Default: Electron.
-2. **Single or multi firm per file** in MVP. Default: single.
-3. **Thermal printer support** in MVP? Default: A4 + thermal template, no direct ESC/POS.
-4. **Import from existing Vyapar data** (CSV/Excel export of parties & items) — useful for migration.
+Settled:
+
+1. **Shell:** Electron.
+2. **Firms:** one business per database file, several per computer, with a switcher.
+3. **Thermal printers:** 58 and 80 mm receipt layouts printed through the system printer; no direct ESC/POS.
+4. **Importing existing data:** items and parties from Excel/CSV, with matching headings recognised.
+
+Still open (need the owner's decision before building):
+
+5. **Users and roles:** passcode only, or named users with permissions?
+6. **Sync between devices:** none, a shared folder, or a server? Affects IDs (already UUIDs) and conflict rules.
+7. **Stock per batch:** keep batch as a printed detail (today) or track stock and expiry per batch?
 
 ## Added after phase 9
 
