@@ -19,6 +19,7 @@ for (const [nav, needle] of [
   ['Sale', '+ New invoice'],
   ['Purchase', 'Purchase'],
   ['Reports', 'Reports'],
+  ['Grow', 'Grow your business'],
   ['Settings', 'Extra fields']
 ]) {
   await click(nav)

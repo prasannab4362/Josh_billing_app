@@ -19,6 +19,9 @@ An offline GST billing, inventory and accounts app for Indian small businesses. 
   customer PO; up to four fields of your own for parties and items.
 - **Accounts and reports:** double-entry ledger, cash and bank, expenses, day book, party statements, ageing,
   profit and loss, GST summary, item sales; print, PDF and CSV.
+- **Grow your business:** posters for greetings, festivals, offers and products (English, Hindi, Tamil) saved as
+  images or copied for WhatsApp; product catalogue PDF; WhatsApp messages for bills and payment reminders; Google
+  Business Profile helper with a "Review us" QR poster. All made offline; WhatsApp opens with the text ready.
 - **Data safety:** backups and restore, recycle bin, change history; several businesses per computer.
 
 ## Development

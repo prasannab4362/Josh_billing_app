@@ -10,10 +10,11 @@ import { ExpensesPage } from './expenses/ExpensesPage'
 import { PaymentsPage } from './payments/PaymentsPage'
 import { CashBankPage } from './cashbank/CashBankPage'
 import { SettingsPage } from './settings/SettingsPage'
+import { GrowPage } from './grow/GrowPage'
 
-const NAV = ['Dashboard', 'Parties', 'Items', 'Sale', 'Payments', 'Purchase', 'Cash & Bank', 'Expenses', 'Reports', 'Settings'] as const
+const NAV = ['Dashboard', 'Parties', 'Items', 'Sale', 'Payments', 'Purchase', 'Cash & Bank', 'Expenses', 'Reports', 'Grow', 'Settings'] as const
 type Page = (typeof NAV)[number]
-const READY: Page[] = ['Dashboard', 'Parties', 'Items', 'Sale', 'Payments', 'Purchase', 'Cash & Bank', 'Expenses', 'Reports', 'Settings']
+const READY: Page[] = ['Dashboard', 'Parties', 'Items', 'Sale', 'Payments', 'Purchase', 'Cash & Bank', 'Expenses', 'Reports', 'Grow', 'Settings']
 
 interface Props {
   business: Business
@@ -120,6 +121,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
           {page === 'Payments' && <PaymentsPage key={k('payments')} business={business} />}
           {page === 'Cash & Bank' && <CashBankPage key={k('cash')} business={business} />}
           {page === 'Reports' && <ReportsPage key={k('reports')} business={business} initial={target.open?.id as ReportKey | undefined} go={go} />}
+          {page === 'Grow' && <GrowPage key={k('grow')} business={business} />}
           {page === 'Settings' && <SettingsPage business={business} onBusinessChange={onBusinessChange} />}
         </main>
       </div>

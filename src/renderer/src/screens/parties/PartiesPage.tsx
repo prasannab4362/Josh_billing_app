@@ -8,6 +8,9 @@ import { StatementTable } from '../../components/StatementTable'
 import { PaymentForm } from '../payments/PaymentForm'
 import { PartyForm } from './PartyForm'
 import { ImportModal } from '../../components/ImportModal'
+import { WhatsAppModal } from '../../components/WhatsAppModal'
+import { reminderMessage } from '@shared/share'
+import type { Business, MoneyAccount } from '@shared/models'
 
 type Filter = 'all' | 'customer' | 'supplier' | 'receive' | 'pay'
 const FILTERS: { key: Filter; label: string }[] = [
@@ -46,9 +49,20 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Party | 'new' | null>(null)
   const [importing, setImporting] = useState(false)
+  const [reminding, setReminding] = useState<{ party: Party; business: Business; bank: MoneyAccount | null } | null>(null)
   const [paying, setPaying] = useState<{ direction: PaymentDirection; partyId: string } | null>(null)
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
 
+  const remind = async (p: Party) => {
+    try {
+      const [business, accounts] = await Promise.all([api.currentBusiness(), api.listAccounts()])
+      if (!business) return
+      const bank = accounts.find((a) => a.kind !== 'cash' && a.isDefaultForPrint) ?? accounts.find((a) => a.kind !== 'cash') ?? null
+      setReminding({ party: p, business, bank })
+    } catch (e) {
+      setMessage({ kind: 'error', text: errorMessage(e) })
+    }
+  }
   const exportExcel = async () => {
     try {
       const path = await api.exportToExcel('parties')
@@ -171,6 +185,7 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
               {selected.kind !== 'customer' && (
                 <button className="btn small primary" onClick={() => setPaying({ direction: 'out', partyId: selected.id })}>Make payment</button>
               )}
+              <button className="btn small" onClick={() => remind(selected)}>{selected.balance > 0 ? 'WhatsApp reminder' : 'WhatsApp'}</button>
               <button className="btn small" onClick={() => setEditing(selected)}>Edit</button>
               <button className="btn small" onClick={() => toggleActive(selected)}>
                 {selected.isActive ? 'Mark inactive' : 'Mark active'}
@@ -237,6 +252,18 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
             setPaying(null)
             if (p) setMessage({ kind: 'success', text: `Payment ${p.number} saved` })
             load()
+          }}
+        />
+      )}
+      {reminding && (
+        <WhatsAppModal
+          title={`WhatsApp ${reminding.party.name}`}
+          phone={reminding.party.phone}
+          initial={reminding.party.balance > 0 ? reminderMessage(reminding.party, reminding.business, reminding.bank) : `Hello ${reminding.party.name},\n\n\n${reminding.business.name}`}
+          onClose={() => setReminding(null)}
+          onSend={async (text) => {
+            await api.openWhatsApp(reminding.party.phone, text)
+            return 'WhatsApp opened with the message.'
           }}
         />
       )}

@@ -368,4 +368,7 @@ Still open (need the owner's decision before building):
   stock is still per item, not per batch.
 - **Switches and own fields:** transport and PO details on bills, time on prints, profit while billing, up to 4 own
   fields for parties and items (migration v8, `extra` columns).
+- **Grow:** posters (16 own templates, en/hi/ta, square and tall PNG, clipboard), catalogue PDF, WhatsApp messages
+  from bills (PDF kept in Documents\Billing App\Shared) and parties, Google profile helper and review QR poster.
+  Online store, ads and Google sign-in are not built: they need servers and accounts.
 - Not built: Tally import, reverse charge / composition scheme / TCS / TDS, free quantity, passcode, multi-currency.
