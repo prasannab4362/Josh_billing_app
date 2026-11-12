@@ -39,6 +39,10 @@ import { listBin, restoreFromBin } from './services/recycleBin'
 import { getFeatures, getItemFields, getPrintSettings, samplePrintHtml, saveFeatures, saveItemFields, savePrintSettings } from './services/printDesign'
 import { bulkUpdateItems, commitImport, exportSheets, previewImport, templateSheets } from './services/imports'
 import { readSpreadsheet, writeXlsx } from './xlsx'
+import { copyPoster, htmlToPdf, keepForSharing, openSafe, savePdfAs, savePoster } from './share'
+import { catalogueHtml, whatsappLink, type CatalogueItem } from '@shared/share'
+import { invoiceHtml } from '@shared/invoiceHtml'
+import { labelPrice } from './services/labels'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
@@ -70,6 +74,23 @@ export function createHandlers(session: Session): BillingApi {
     } catch {
       return null
     }
+  }
+  // Items for posters and the catalogue, in the order asked: price with GST (what the customer pays) and photo.
+  const catalogueItems = (ids: string[]): (CatalogueItem & { id: string })[] => {
+    if (!Array.isArray(ids) || ids.length > 1000) throw new UserError('Choose at most 1000 items')
+    const registered = getPreferences(db()).gstRegistered
+    const rates = new Map(listTaxRates(db()).map((r) => [r.id, r]))
+    const byId = new Map(listItems(db()).map((i) => [i.id, i]))
+    return ids.flatMap((id) => {
+      const i = byId.get(id)
+      if (!i) return []
+      const r = i.taxRateId ? rates.get(i.taxRateId) : undefined
+      return [{
+        id, name: i.name, description: i.description, category: i.category, unit: i.baseUnitShort,
+        price: labelPrice(i.salePrice, i.priceIncludesTax, r?.rateBp ?? 0, r?.cessBp ?? 0, registered),
+        mrp: i.mrp, photo: i.hasImage ? getItemImage(db(), id) : null
+      }]
+    })
   }
   const printData = (type: BillType, id: string): InvoicePrintData => {
     const prefs = getPreferences(db())
@@ -155,6 +176,22 @@ export function createHandlers(session: Session): BillingApi {
     previewLabels: async (req) => labelPage(db(), req),
     printLabels: async (req) => printLabels(labelPage(db(), req)),
     saveLabelsPdf: async (req) => saveLabelsPdf(labelPage(db(), req)),
+    savePoster: async (html, size, name) => savePoster(html, size, name),
+    copyPoster: async (html, size) => copyPoster(html, size),
+    catalogueItems: async (ids) => catalogueItems(ids),
+    saveCatalogue: async (ids, options) => {
+      const b = getBusiness(db())
+      return savePdfAs(catalogueHtml(catalogueItems(ids), options, b), `${b.name} ${options.title || 'catalogue'}`)
+    },
+    shareBillOnWhatsApp: async (type, id, text) => {
+      const data = printData(type, id)
+      const inv = data.invoice
+      const path = keepForSharing(await htmlToPdf(invoiceHtml(data)), `${inv.number || type} ${inv.party.name}`)
+      await openSafe(whatsappLink(inv.party.phone, text))
+      return path
+    },
+    openWhatsApp: async (phone, text) => openSafe(whatsappLink(phone, text)),
+    openWeb: async (url) => openSafe(url),
     getFeatures: async () => getFeatures(db()),
     saveFeatures: async (s) => saveFeatures(db(), s),
     getItemFields: async () => getItemFields(db()),

@@ -7,6 +7,8 @@ import type { Gstr1, Gstr3b } from './gstReturns'
 import type { PrintSettings } from './printSettings'
 import type { ItemFieldSettings } from './itemFields'
 import type { FeatureSettings } from './features'
+import type { PosterSize } from './posters'
+import type { CatalogueItem, CatalogueOptions } from './share'
 import type { ImportKind, ImportPreview, ImportResult, ItemBulkChange } from './imports'
 import type { CustomSize, LabelExtra, LabelOptions, SavedLabelSize } from './labels'
 import type { AuditEntry, AuditFilter, BackupFile, BackupInfo, BinEntry, BinKind } from './data'
@@ -107,6 +109,19 @@ export interface BillingApi {
   /** How invoices print: layout, colour, what to show. */
   getPrintSettings(): Promise<PrintSettings>
   savePrintSettings(s: PrintSettings): Promise<PrintSettings>
+  /** Posters: save as PNG (asks where) or copy to the clipboard. `html` comes from posterHtml. */
+  savePoster(html: string, size: PosterSize, name: string): Promise<string | null>
+  copyPoster(html: string, size: PosterSize): Promise<boolean>
+  /** Item details for posters and the catalogue: price with GST, photo. */
+  catalogueItems(itemIds: string[]): Promise<(CatalogueItem & { id: string })[]>
+  /** Save the catalogue as a PDF (asks where, then opens it). */
+  saveCatalogue(itemIds: string[], options: CatalogueOptions): Promise<string | null>
+  /** Save the bill's PDF to Documents\Billing App\Shared, show it, and open WhatsApp with the message. */
+  shareBillOnWhatsApp(type: BillType, id: string, text: string): Promise<string>
+  /** Open WhatsApp with a message, to a phone number ('' = choose in WhatsApp). */
+  openWhatsApp(phone: string, text: string): Promise<void>
+  /** Open Google Business Profile (or the business's review link) in the browser. */
+  openWeb(url: string): Promise<void>
   /** Optional parts of bills and the business's own party and item fields. */
   getFeatures(): Promise<FeatureSettings>
   saveFeatures(s: FeatureSettings): Promise<FeatureSettings>
@@ -268,6 +283,13 @@ const methods: Record<keyof BillingApi, true> = {
   previewLabels: true,
   printLabels: true,
   saveLabelsPdf: true,
+  savePoster: true,
+  copyPoster: true,
+  catalogueItems: true,
+  saveCatalogue: true,
+  shareBillOnWhatsApp: true,
+  openWhatsApp: true,
+  openWeb: true,
   getFeatures: true,
   saveFeatures: true,
   getItemFields: true,

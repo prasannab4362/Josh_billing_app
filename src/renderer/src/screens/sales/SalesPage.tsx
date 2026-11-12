@@ -8,6 +8,9 @@ import { Banner } from '../../components/Field'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 import { PaymentForm } from '../payments/PaymentForm'
 import { InvoiceEditor } from './InvoiceEditor'
+import { WhatsAppModal } from '../../components/WhatsAppModal'
+import { billMessage } from '@shared/share'
+import type { InvoicePrintData } from '@shared/invoiceHtml'
 
 const STATUS_LABEL: Record<InvoiceStatus, string> = {
   paid: 'Paid', partial: 'Partly paid', unpaid: 'Unpaid', overdue: 'Overdue', open: 'Open', converted: 'Converted'
@@ -255,10 +258,13 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
   const [busy, setBusy] = useState(false)
   const [paying, setPaying] = useState(false)
   const [version, setVersion] = useState(0)
+  const [printData, setPrintData] = useState<InvoicePrintData | null>(null)
+  const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
     api.getBillPrint(type, id).then(
       (data) => {
+        setPrintData(data)
         setBill(data.invoice)
         setHtml(invoiceHtml(data))
       },
@@ -315,6 +321,7 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
         <button className="btn" onClick={onEdit} disabled={busy}>Edit</button>
         <button className="btn" onClick={remove} disabled={busy}>Delete</button>
         <button className="btn" onClick={pdf} disabled={busy}>PDF</button>
+        {bill && <button className="btn" onClick={() => setSharing(true)} disabled={busy}>WhatsApp</button>}
         <button className="btn" onClick={print} disabled={busy}>Print</button>
         <button className="btn primary" onClick={onNew}>{info.newLabel}</button>
       </div>
@@ -341,6 +348,18 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
             </button>
           ))}
         </div>
+      )}
+      {sharing && bill && printData && (
+        <WhatsAppModal
+          title={`Send ${info.noun.toLowerCase()} on WhatsApp`}
+          phone={bill.party.phone}
+          initial={billMessage(type, bill, printData.business, printData.bank)}
+          onClose={() => setSharing(false)}
+          onSend={async (text) => {
+            const path = await api.shareBillOnWhatsApp(type, id, text)
+            return `WhatsApp opened. The PDF is saved at ${path} (its folder is open): drag it into the chat to attach it.`
+          }}
+        />
       )}
       {paying && bill?.partyId && (
         <PaymentForm

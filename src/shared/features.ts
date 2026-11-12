@@ -19,6 +19,8 @@ export interface FeatureSettings {
   poDetails: boolean
   partyFields: CustomField[]
   itemFields: CustomField[]
+  /** The business's Google review link, for the "Review us" poster. */
+  reviewLink: string
 }
 
 export const CUSTOM_FIELD_COUNT = 4
@@ -31,7 +33,8 @@ export const DEFAULT_FEATURES: FeatureSettings = {
   transport: false,
   poDetails: false,
   partyFields: blankFields(),
-  itemFields: blankFields()
+  itemFields: blankFields(),
+  reviewLink: ''
 }
 
 export function completeFeatures(saved: Partial<FeatureSettings> | null | undefined): FeatureSettings {
@@ -47,7 +50,8 @@ export function completeFeatures(saved: Partial<FeatureSettings> | null | undefi
     transport: !!s.transport,
     poDetails: !!s.poDetails,
     partyFields: fields(s.partyFields),
-    itemFields: fields(s.itemFields)
+    itemFields: fields(s.itemFields),
+    reviewLink: /^https:\/\/\S{4,300}$/.test(String(s.reviewLink ?? '').trim()) ? String(s.reviewLink).trim() : ''
   }
 }
 

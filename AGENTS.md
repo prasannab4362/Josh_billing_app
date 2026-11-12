@@ -74,6 +74,9 @@ scripts/e2e/         drive the running app over CDP (see its README)
 - **Images** (logo, signature, item photo) are data URLs stored in the database, so backups carry them.
 - **Printing:** the same HTML from `src/shared/invoiceHtml.ts` is used for the preview, printing and PDF. The data
   comes from `printData()` in `src/main/ipc.ts`; add new print inputs there.
+- **Nothing is sent from the app.** WhatsApp opens through `https://wa.me/` links with the text filled in; the user
+  presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Google Business and Google review links; keep that
+  list short. Posters and catalogues are made on the computer; nothing is uploaded.
 - **Imports are two-step:** `previewImport` checks every row and saves nothing; `commitImport` saves the good rows in
   one transaction. On an update, a blank cell keeps the saved value.
 - Write user-facing text in plain English for a shop owner. Use Indian formats (₹1,23,456.78, DD-MM-YYYY on prints).
@@ -83,7 +86,7 @@ scripts/e2e/         drive the running app over CDP (see its README)
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 247 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 255 tests at the time of writing. Add tests for every rule you add, including the refusals.
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
 - Barcodes/QR were verified by reading rendered labels with OpenCV; the QR encoder was checked for all 40 versions
   × 4 levels. If you change `barcode.ts`, `qr.ts` or `labels.ts`, check again the same way.
@@ -105,10 +108,12 @@ scripts/e2e/         drive the running app over CDP (see its README)
 | Print designs, UPI QR | `shared/printSettings.ts`, `shared/invoiceHtml.ts`, `services/printDesign.ts`, `screens/settings/PrintTab.tsx` |
 | Batch / dates / model / size / serial on lines | `shared/itemFields.ts`, `document_line.details`, `screens/settings/ItemFieldsTab.tsx` |
 | Transport, PO, time, profit, own fields | `shared/features.ts`, `document.extra`, `party.extra`, `item.extra`, `screens/settings/FeaturesTab.tsx`, `components/OwnFields.tsx` |
+| Grow: posters, catalogue, Google profile | `shared/posters.ts` (templates, own CSS art, en/hi/ta text), `shared/share.ts` (catalogue HTML, WhatsApp texts and wa.me links), `main/share.ts` (PNG via offscreen window, clipboard, PDF, safe link opening), `screens/grow/GrowPage.tsx` |
+| WhatsApp from bills and parties | `components/WhatsAppModal.tsx`, `shareBillOnWhatsApp` in `main/ipc.ts` (PDF to Documents\Billing App\Shared, then wa.me) |
 
 ## Not built yet
 
-Users and roles (passcode), sync between devices, import from Tally, reverse charge, composition scheme, TCS/TDS,
+Online store, ads and Google sign-in (need servers), users and roles (passcode), sync between devices, import from Tally, reverse charge, composition scheme, TCS/TDS,
 free quantity, stock per batch, multi-currency, WhatsApp/SMS sending, e-invoice (IRN). Ask the owner before
 starting any of these; sync in particular needs decisions first.
 
