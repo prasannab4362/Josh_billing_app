@@ -1,0 +1,34 @@
+{
+  "name": "billing-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-first GST billing, inventory and accounts app",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "cross-env ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run"
+  },
+  "dependencies": {
+    "better-sqlite3": "11.7.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "3.7.1",
+    "@types/better-sqlite3": "7.6.12",
+    "@types/node": "22.10.1",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "cross-env": "7.0.3",
+    "electron": "33.2.1",
+    "electron-vite": "2.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}
