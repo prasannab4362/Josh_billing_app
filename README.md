@@ -39,5 +39,6 @@ Code layout:
 - `src/renderer` — React screens
 - `src/shared` — code used by both: models, GST maths, invoice and label HTML, barcode and QR encoders
 
-See `DESIGN.md` for the data model and design decisions. Money is stored as integer paise, quantities as
+See `DESIGN.md` for the data model and design decisions, and `AGENTS.md` for the rules every change must keep
+(also read by coding agents). End-to-end checks of the running app are in `scripts/e2e/`. Money is stored as integer paise, quantities as
 milli-units, and rates as basis points, so no amount is ever a floating-point number.
