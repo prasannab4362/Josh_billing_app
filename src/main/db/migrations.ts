@@ -427,5 +427,20 @@ ALTER TABLE document ADD COLUMN extra TEXT;
 ALTER TABLE party ADD COLUMN extra TEXT;
 ALTER TABLE item ADD COLUMN extra TEXT;
 `
+  },
+  {
+    version: 9,
+    name: 'owner and staff logins',
+    sql: `
+-- Logins for the business (app_user exists since v1 but was never used). Passwords are stored only as scrypt
+-- hashes. Failed tries and a lock time slow down guessing.
+ALTER TABLE app_user ADD COLUMN username TEXT;
+ALTER TABLE app_user ADD COLUMN password_hash TEXT;
+ALTER TABLE app_user ADD COLUMN failed_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE app_user ADD COLUMN locked_until TEXT;
+ALTER TABLE app_user ADD COLUMN last_login_at TEXT;
+ALTER TABLE app_user ADD COLUMN updated_at TEXT;
+CREATE UNIQUE INDEX idx_app_user_username ON app_user(username COLLATE NOCASE) WHERE username IS NOT NULL;
+`
   }
 ]

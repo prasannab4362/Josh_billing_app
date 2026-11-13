@@ -19,6 +19,7 @@ import { lineAmount, toBaseUnits, toMilli } from '@shared/qty'
 import { computeTax, priceForDocument, type TaxLine } from '@shared/tax'
 import { todayLocal } from '@shared/fy'
 import { api, errorMessage } from '../../api'
+import { Icon, IconTile } from '../../components/Icon'
 import { Banner, DateInput, Field, StateSelect, TextArea, TextInput, Toggle } from '../../components/Field'
 import { paiseText } from '../../forms'
 import { formatQty } from '@shared/qty'
@@ -441,6 +442,7 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
   return (
     <div className="editor">
       <div className="page-head">
+        <IconTile name={invoiceId ? 'edit' : 'plus'} tone={purchase ? 'violet' : 'accent'} />
         <h1>
           {invoiceId
             ? `Edit ${noun} ${original?.number ?? ''}`
@@ -448,10 +450,10 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
           {source && !info.returnOf && <span className="muted"> from {BILL_INFO[source.type].noun.toLowerCase()} {source.number}</span>}
         </h1>
         <span className="spacer" />
-        <button className="btn" onClick={onCancel}>Cancel</button>
-        <button className="btn" onClick={() => save(true)} disabled={saving}>Save & print</button>
+        <button className="btn ghost" onClick={onCancel}><Icon name="x" size={17} />Cancel</button>
+        <button className="btn" onClick={() => save(true)} disabled={saving}><Icon name="printer" size={17} />Save & print</button>
         <button className="btn primary" onClick={() => save(false)} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving…' : <><Icon name="check" size={17} />Save</>}
         </button>
       </div>
       {failure && <Banner kind="error">{failure}</Banner>}
@@ -475,7 +477,7 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
                     <option key={p.id} value={p.id}>{p.name}{p.phone ? ` · ${p.phone}` : ''}</option>
                   ))}
               </select>
-              <button className="btn" type="button" title="Add a new party" onClick={() => setAddingParty(true)}>+ New</button>
+              <button className="btn" type="button" title="Add a new party" onClick={() => setAddingParty(true)}><Icon name="plus" size={16} />New</button>
             </div>
             {party ? (
               <span className="field-hint">
@@ -656,7 +658,7 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
             </div>
           ))}
           <button className="btn small" onClick={() => setCharges((l) => [...l, { key: nextKey++, name: '', amount: '', taxRateId: '' }])}>
-            + Add charge
+            <Icon name="plus" size={16} />Add charge
           </button>
           {extraKeys.length > 0 && (
             <>

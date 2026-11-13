@@ -1,9 +1,9 @@
 // Sharing: poster images, the catalogue PDF, bills on WhatsApp, and the few web pages the app opens.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, shell } from 'electron'
 import { POSTER_SIZES, type PosterSize } from '@shared/posters'
-import { GOOGLE_BUSINESS_URL } from '@shared/share'
+import { isSafeExternalUrl } from '@shared/share'
 import { UserError } from './util'
 
 const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -46,7 +46,9 @@ export async function savePoster(html: string, size: PosterSize, name: string): 
 /** Put the poster on the clipboard, ready to paste into WhatsApp. */
 export async function copyPoster(html: string, size: PosterSize): Promise<boolean> {
   const { width, height } = posterSize(size)
-  clipboard.writeImage(nativeImage.createFromBuffer(await renderPng(html, width, height)))
+  // Electron 44+: the W3C-style clipboard API; a PNG Blob pastes as a picture into WhatsApp and other apps.
+  const png = await renderPng(html, width, height)
+  await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
   return true
 }
 
@@ -88,7 +90,6 @@ export function keepForSharing(pdf: Buffer, name: string): string {
 
 /** Open only the web addresses the app itself makes: WhatsApp's wa.me links and Google Business. */
 export async function openSafe(url: string): Promise<void> {
-  const ok = url.startsWith('https://wa.me/') || url === GOOGLE_BUSINESS_URL || /^https:\/\/(g\.page|maps\.app\.goo\.gl|www\.google\.com|search\.google\.com)\//.test(url)
-  if (!ok) throw new UserError('That link cannot be opened from here')
+  if (!isSafeExternalUrl(url)) throw new UserError('That link cannot be opened from here')
   await shell.openExternal(url)
 }

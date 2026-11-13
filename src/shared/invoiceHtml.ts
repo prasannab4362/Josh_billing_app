@@ -135,6 +135,9 @@ table.summary th, table.summary td { border: 1px solid #ddd; padding: 3px 6px; }
 .thermal .biz h1 { color: #000; font-size: 1.4em; }
 .thermal .title h2 { color: #000; font-size: 1.1em; }
 .thermal .logo { max-width: 60%; max-height: 50px; margin: 0 auto 4px; display: block; }
+.thermal .sign { text-align: center; margin-top: 10px; }
+.thermal .sign img { max-width: 70%; max-height: 40px; margin: 4px auto -22px; }
+.thermal .sign .line { margin-top: 26px; min-width: 60%; }
 .thermal .hide-thermal { display: none; }
 .thermal table.items th { background: none; border-bottom: 1px dashed #000; color: #000; padding: 3px 2px; }
 .thermal table.items td { padding: 3px 2px; border-bottom: 0; }
@@ -324,7 +327,7 @@ export function invoiceHtml(d: InvoicePrintData): string {
     </table>
     ${thermal ? upi : ''}
   </div>
-  ${show.signature ? `<div class="sign hide-thermal"><div>For ${esc(b.name)}</div>${b.signature ? `<img src="${b.signature}" alt="">` : ''}<div class="line">Authorised signatory</div></div>` : ''}
+  ${show.signature ? `<div class="sign${show.signatureOnBill ? '' : ' hide-thermal'}"><div>For ${esc(b.name)}</div>${b.signature ? `<img src="${b.signature}" alt="">` : ''}<div class="line">Authorised signatory</div></div>` : ''}
   ${s.footer.trim() ? `<div class="footer">${lines(s.footer.trim())}</div>` : ''}
 </div></body></html>`
 }

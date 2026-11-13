@@ -3,6 +3,7 @@ import type { AccountInput, AccountWithBalance, Business, Statement } from '@sha
 import { formatINR, toPaise } from '@shared/money'
 import { todayLocal } from '@shared/fy'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner, DateInput, Field, Modal, TextInput, Toggle } from '../../components/Field'
 import { StatementTable } from '../../components/StatementTable'
 import { paiseText } from '../../forms'
@@ -63,10 +64,10 @@ export function CashBankPage({ business }: { business: Business }) {
   return (
     <div>
       <div className="page-head">
-        <h1>Cash & bank</h1>
+        <PageTitle icon="bank" tone="violet" title="Cash & bank" sub="Balances, transfers and every movement" />
         <span className="spacer" />
-        <button className="btn" onClick={() => setTransferring(true)} disabled={accounts.length < 2}>Transfer money</button>
-        <button className="btn primary" onClick={() => setEditing('new')}>+ Add bank account</button>
+        <button className="btn" onClick={() => setTransferring(true)} disabled={accounts.length < 2}><Icon name="swap" size={17} />Transfer money</button>
+        <button className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size={17} />Add bank account</button>
       </div>
       <div className="stats">
         <div className="stat"><div className="label">Cash in hand</div><div className="value">{formatINR(cash)}</div></div>
@@ -105,7 +106,7 @@ export function CashBankPage({ business }: { business: Business }) {
               <select className="input" style={{ width: 'auto' }} value={period} onChange={(e) => setPeriod(e.target.value as PeriodKey)}>
                 {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
               </select>
-              <button className="btn small" onClick={() => setEditing(selected)}>Edit</button>
+              <button className="btn small" onClick={() => setEditing(selected)}><Icon name="edit" size={16} />Edit</button>
               {selected.kind !== 'cash' && <button className="btn small" onClick={() => removeAccount(selected)}>Remove</button>}
             </div>
             {statement && (

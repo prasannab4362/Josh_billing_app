@@ -140,3 +140,28 @@ export function googleProfileFields(b: Business): { label: string; value: string
 }
 
 export const GOOGLE_BUSINESS_URL = 'https://www.google.com/business/'
+
+/**
+ * The only web pages the app opens in the browser: a WhatsApp chat (wa.me), Google Business, and Google review
+ * or map links for the business. Parsed rather than matched by prefix, so redirect pages (google.com/url?q=…),
+ * other ports, user names inside links and look-alike hosts are all refused.
+ */
+export function isSafeExternalUrl(raw: string): boolean {
+  let u: URL
+  try {
+    u = new URL(String(raw ?? ''))
+  } catch {
+    return false
+  }
+  if (u.protocol !== 'https:' || u.username || u.password || u.port) return false
+  const path = u.pathname
+  switch (u.hostname) {
+    case 'wa.me': return /^\/\d{0,15}$/.test(path)
+    case 'www.google.com': return path === '/business/' || path.startsWith('/business/') || path.startsWith('/maps/place/')
+    case 'business.google.com': return true
+    case 'g.page': return /^\/(r\/)?[A-Za-z0-9_-]+(\/review)?\/?$/.test(path)
+    case 'search.google.com': return path === '/local/writereview' || path === '/local/reviews'
+    case 'maps.app.goo.gl': return /^\/[A-Za-z0-9_-]+$/.test(path)
+    default: return false
+  }
+}

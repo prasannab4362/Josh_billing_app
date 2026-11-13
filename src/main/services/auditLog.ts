@@ -21,6 +21,8 @@ interface Row {
   pay_direction: string | null
   account_name: string | null
   adj_item: string | null
+  user_name: string | null
+  user_label: string | null
 }
 
 const parse = (json: string | null): Record<string, unknown> | null => {
@@ -46,6 +48,7 @@ function label(r: Row): string {
     case 'bank_account': return `Account ${r.account_name ?? ''}`.trim()
     case 'account_transfer': return 'Transfer'
     case 'stock_adjustment': return `Stock adjustment ${r.adj_item ?? ''}`.trim()
+    case 'user': return `Login ${r.user_label ?? ''}`.trim()
     default: return r.entity
   }
 }
@@ -55,7 +58,8 @@ export function listAudit(db: DB, filter: AuditFilter = {}, limit = 500): AuditE
   const rows = db
     .prepare(
       `SELECT a.*, d.doc_type, d.number AS doc_number, d.category, p.name AS party_name, i.name AS item_name,
-              y.number AS pay_number, y.direction AS pay_direction, b.name AS account_name, ai.name AS adj_item
+              y.number AS pay_number, y.direction AS pay_direction, b.name AS account_name, ai.name AS adj_item,
+              u.name AS user_name, lu.name AS user_label
        FROM audit_log a
        LEFT JOIN document d ON a.entity IN ('document', 'expense') AND d.id = a.entity_id
        LEFT JOIN party p ON a.entity = 'party' AND p.id = a.entity_id
@@ -64,6 +68,8 @@ export function listAudit(db: DB, filter: AuditFilter = {}, limit = 500): AuditE
        LEFT JOIN bank_account b ON a.entity = 'bank_account' AND b.id = a.entity_id
        LEFT JOIN stock_adjustment s ON a.entity = 'stock_adjustment' AND s.id = a.entity_id
        LEFT JOIN item ai ON ai.id = s.item_id
+       LEFT JOIN app_user u ON u.id = a.user_id
+       LEFT JOIN app_user lu ON a.entity = 'user' AND lu.id = a.entity_id
        WHERE (@from IS NULL OR substr(a.at, 1, 10) >= @from) AND (@to IS NULL OR substr(a.at, 1, 10) <= @to)
          AND (@entity IS NULL OR a.entity = @entity) AND (@entityId IS NULL OR a.entity_id = @entityId)
        ORDER BY a.at DESC, a.rowid DESC`
@@ -75,7 +81,7 @@ export function listAudit(db: DB, filter: AuditFilter = {}, limit = 500): AuditE
   for (const r of rows) {
     const entry: AuditEntry = {
       id: r.id, at: r.at, entity: r.entity, entityId: r.entity_id, action: r.action, label: label(r),
-      before: parse(r.before_json), after: parse(r.after_json)
+      before: parse(r.before_json), after: parse(r.after_json), by: r.user_name ?? ''
     }
     if (q && !entry.label.toLowerCase().includes(q) && !(r.before_json ?? '').toLowerCase().includes(q) && !(r.after_json ?? '').toLowerCase().includes(q)) continue
     out.push(entry)

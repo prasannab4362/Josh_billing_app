@@ -20,7 +20,7 @@ export async function connect(out) {
   let target
   for (let i = 0; i < 40 && !target; i++) {
     try {
-      target = (await (await fetch(`http://127.0.0.1:${PAGE_PORT}/json`)).json()).find((t) => t.type === 'page')
+      target = (await (await fetch(`http://127.0.0.1:${PAGE_PORT}/json`)).json()).find((t) => t.type === 'page' && !t.url.startsWith('data:'))
     } catch {}
     if (!target) await sleep(500)
   }

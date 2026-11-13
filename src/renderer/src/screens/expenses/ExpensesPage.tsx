@@ -3,15 +3,16 @@ import type { Business, Expense, ExpenseInput, MoneyAccount, Preferences, TaxRat
 import { applyRate, formatINR, toPaise } from '@shared/money'
 import { todayLocal } from '@shared/fy'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner, DateInput, Field, Modal, TextArea, TextInput } from '../../components/Field'
 import { paiseText } from '../../forms'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 
-export function ExpensesPage({ business }: { business: Business }) {
+export function ExpensesPage({ business, startNew = false }: { business: Business; startNew?: boolean }) {
   const [period, setPeriod] = useState<PeriodKey>('month')
   const [category, setCategory] = useState('')
   const [list, setList] = useState<Expense[]>([])
-  const [editing, setEditing] = useState<Expense | 'new' | null>(null)
+  const [editing, setEditing] = useState<Expense | 'new' | null>(startNew ? 'new' : null)
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
 
   const load = () =>
@@ -43,9 +44,9 @@ export function ExpensesPage({ business }: { business: Business }) {
   return (
     <div>
       <div className="page-head">
-        <h1>Expenses</h1>
+        <PageTitle icon="cash" tone="amber" title="Expenses" sub="Running costs paid from cash or bank" />
         <span className="spacer" />
-        <button className="btn primary" onClick={() => setEditing('new')}>+ Add expense</button>
+        <button className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size={17} />Add expense</button>
       </div>
       <div className="stats">
         <div className="stat"><div className="label">Total paid{category ? ` · ${category}` : ''}</div><div className="value pay">{formatINR(total)}</div></div>

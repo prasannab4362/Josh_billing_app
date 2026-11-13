@@ -2,18 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Business, PaymentDirection, PaymentSummary } from '@shared/models'
 import { formatINR } from '@shared/money'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner } from '../../components/Field'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 import { MODES, PaymentForm } from './PaymentForm'
 
 const MODE_LABEL = Object.fromEntries(MODES.map((m) => [m.value, m.label]))
 
-export function PaymentsPage({ business }: { business: Business }) {
-  const [direction, setDirection] = useState<PaymentDirection>('in')
+export function PaymentsPage({ business, startNew }: { business: Business; startNew?: PaymentDirection }) {
+  const [direction, setDirection] = useState<PaymentDirection>(startNew ?? 'in')
   const [period, setPeriod] = useState<PeriodKey>('fy')
   const [search, setSearch] = useState('')
   const [list, setList] = useState<PaymentSummary[]>([])
-  const [editing, setEditing] = useState<{ id: string | null } | null>(null)
+  const [editing, setEditing] = useState<{ id: string | null } | null>(startNew ? { id: null } : null)
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
 
   const load = () =>
@@ -35,14 +36,14 @@ export function PaymentsPage({ business }: { business: Business }) {
   return (
     <div>
       <div className="page-head">
-        <h1>Payments</h1>
+        <PageTitle icon="wallet" tone="green" title="Payments" sub="Money received and paid, set against bills" />
         <span className="spacer" />
-        <button className="btn" onClick={() => { setDirection('out'); setEditing({ id: null }) }}>+ Payment out</button>
-        <button className="btn primary" onClick={() => { setDirection('in'); setEditing({ id: null }) }}>+ Payment in</button>
+        <button className="btn" onClick={() => { setDirection('out'); setEditing({ id: null }) }}><Icon name="arrowOut" size={17} />Payment out</button>
+        <button className="btn primary" onClick={() => { setDirection('in'); setEditing({ id: null }) }}><Icon name="arrowIn" size={17} />Payment in</button>
       </div>
       <nav className="tabs">
-        <button className={isIn ? 'tab active' : 'tab'} onClick={() => setDirection('in')}>Received (in)</button>
-        <button className={isIn ? 'tab' : 'tab active'} onClick={() => setDirection('out')}>Paid (out)</button>
+        <button className={isIn ? 'tab active' : 'tab'} onClick={() => setDirection('in')}><Icon name="arrowIn" size={16} />Received</button>
+        <button className={isIn ? 'tab' : 'tab active'} onClick={() => setDirection('out')}><Icon name="arrowOut" size={16} />Paid</button>
       </nav>
       <div className="stats">
         <div className="stat">
@@ -56,7 +57,10 @@ export function PaymentsPage({ business }: { business: Business }) {
       </div>
       {message && <Banner kind={message.kind}>{message.text}</Banner>}
       <div className="toolbar">
-        <input className="input search" placeholder="Search number, party or reference" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="search-wrap">
+          <Icon name="search" size={16} />
+          <input className="input search" placeholder="Search number, party or reference" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <select className="input" value={period} onChange={(e) => setPeriod(e.target.value as PeriodKey)}>
           {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>

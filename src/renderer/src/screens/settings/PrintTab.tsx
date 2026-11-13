@@ -10,7 +10,7 @@ import { Banner, Toggle } from '../../components/Field'
 const GROUPS: { title: string; keys: (keyof PrintShow)[] }[] = [
   { title: 'Header', keys: ['logo', 'businessAddress', 'businessPhone', 'businessEmail', 'businessGstin', 'partyPhone', 'partyGstin', 'shipTo'] },
   { title: 'Item table', keys: ['serialNo', 'hsn', 'itemDescription', 'discountColumn', 'taxColumn'] },
-  { title: 'Totals and footer', keys: ['taxSummary', 'amountInWords', 'receivedBalance', 'bankDetails', 'upiQr', 'notes', 'terms', 'signature'] }
+  { title: 'Totals and footer', keys: ['taxSummary', 'amountInWords', 'receivedBalance', 'bankDetails', 'upiQr', 'notes', 'terms', 'signature', 'signatureOnBill'] }
 ]
 const PAPERS: [PaperSize, string][] = [['A4', 'A4'], ['A5', 'A5'], ['thermal80', 'Thermal 80 mm'], ['thermal58', 'Thermal 58 mm']]
 const isThermal = (p: PaperSize) => p === 'thermal80' || p === 'thermal58'

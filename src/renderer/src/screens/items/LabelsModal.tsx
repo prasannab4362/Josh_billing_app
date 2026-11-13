@@ -44,12 +44,20 @@ function scaled(html: string, pageWidthMm: number): string {
   )
 }
 
-function LineChoice({ title, line, onChange }: { title: string; line: LabelLine; onChange: (l: LabelLine) => void }) {
+function LineChoice({ title, line, onChange, own }: { title: string; line: LabelLine; onChange: (l: LabelLine) => void; own: string[] }) {
   return (
     <label className="field">
       <span className="field-label">{title}</span>
       <select className="input" value={line.field} onChange={(e) => onChange({ ...line, field: e.target.value as LabelField })}>
-        {Object.entries(LABEL_FIELDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        {Object.entries(LABEL_FIELDS).map(([k, v]) => {
+          // The business's own item fields show under their own names (Size, Colour…), and only when switched on.
+          const n = /^own(\d)$/.exec(k)
+          if (n) {
+            const name = own[Number(n[1]) - 1]
+            return name || line.field === k ? <option key={k} value={k}>{name ? `${name} (item field)` : v}</option> : null
+          }
+          return <option key={k} value={k}>{v}</option>
+        })}
       </select>
       {line.field === 'custom' && (
         <input className="input" style={{ marginTop: 4 }} value={line.text} maxLength={60} placeholder="e.g. Free size"
@@ -71,6 +79,11 @@ export function LabelsModal({ items, preselect, onClose, onItemsChanged }: Props
   const [preview, setPreview] = useState('')
   const [message, setMessage] = useState<Message>(null)
   const [busy, setBusy] = useState(false)
+  // Names of the business's own item fields that are switched on, by position ('' when off).
+  const [own, setOwn] = useState<string[]>([])
+  useEffect(() => {
+    api.getFeatures().then((f) => setOwn(f.itemFields.map((x) => (x.on ? x.label : ''))), () => setOwn([]))
+  }, [])
 
   // The business's sizes and last design, kept in its file.
   useEffect(() => {
@@ -302,8 +315,8 @@ export function LabelsModal({ items, preselect, onClose, onItemsChanged }: Props
             </div>
             <div className="section-title">What the label shows</div>
             <div className="form-grid three">
-              <LineChoice title="Header" line={d.header} onChange={(l) => update({ header: l })} />
-              {d.lines.map((l, i) => <LineChoice key={i} title={`Line ${i + 1}`} line={l} onChange={(x) => setLine(i, x)} />)}
+              <LineChoice title="Header" line={d.header} onChange={(l) => update({ header: l })} own={own} />
+              {d.lines.map((l, i) => <LineChoice key={i} title={`Line ${i + 1}`} line={l} onChange={(x) => setLine(i, x)} own={own} />)}
             </div>
             {extraFields.length > 0 && (
               <p className="muted small" style={{ margin: 0 }}>Type the {extraFields.map((f) => EXTRA_TITLES[f].toLowerCase()).join(', ')} for each item in the list above.</p>

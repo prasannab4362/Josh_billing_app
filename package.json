@@ -5,25 +5,47 @@
   "description": "Offline-first GST billing, inventory and accounts app",
   "main": "./out/main/index.js",
   "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "cross-env ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run"
   },
+  "build": {
+    "appId": "com.joshbilling.desktop",
+    "productName": "Josh Billing",
+    "npmRebuild": false,
+    "directories": { "output": "dist" },
+    "files": ["out/**/*", "package.json"],
+    "asarUnpack": ["node_modules/better-sqlite3/**/*"],
+    "win": {
+      "target": "nsis",
+      "artifactName": "Josh-Billing-Setup-${version}-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Josh Billing",
+      "deleteAppDataOnUninstall": false
+    }
+  },
   "dependencies": {
-    "better-sqlite3": "11.7.0"
+    "better-sqlite3": "13.0.3"
   },
   "devDependencies": {
-    "@electron/rebuild": "3.7.1",
     "@types/better-sqlite3": "7.6.12",
     "@types/node": "22.10.1",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
     "cross-env": "7.0.3",
-    "electron": "33.2.1",
+    "electron": "44.10.0",
+    "electron-builder": "26.18.0",
     "electron-vite": "2.3.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",

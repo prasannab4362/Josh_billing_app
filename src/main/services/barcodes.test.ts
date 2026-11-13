@@ -12,6 +12,7 @@ import {
   assignBarcodes, deleteLabelSize, getLabelDesign, labelData, labelPage, labelPrice, listLabelSizes, saveLabelDesign, saveLabelSize
 } from './labels'
 import { listTaxRates } from './taxRates'
+import { getFeatures, saveFeatures } from './printDesign'
 import { listUnits } from './units'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
@@ -197,5 +198,26 @@ describe('label sizes, saved design and per-item fields', () => {
     expect(monthText('2026-11-05')).toBe('05/11/2026')
     expect(monthText('Nov 26')).toBe('Nov 26')
     expect(() => labelData(db, { items: [{ itemId: t.id, copies: 1, extra: { model: 'x'.repeat(31) } }], options })).toThrow(/at most 30/)
+  })
+
+  it("print the item's own fields (size, colour, design no.) under their own names", () => {
+    const f = getFeatures(db)
+    saveFeatures(db, { ...f, itemFields: [{ on: true, label: 'Size', print: true }, { on: true, label: 'Colour', print: true }, { on: false, label: 'Fabric', print: true }, f.itemFields[3]] })
+    const shirt = createItem(db, { ...base, name: 'Shirt', barcode: '2000000000039', customFields: ['M', 'Navy', 'Cotton', ''] })
+    const plain = createItem(db, { ...base, name: 'Cap', barcode: '2000000000046' })
+    const options: LabelOptions = {
+      ...DEFAULT_LABEL_OPTIONS, layout: 'roll-50x25',
+      lines: [{ field: 'name', text: '' }, { field: 'own1', text: '' }, { field: 'own2', text: '' }, { field: 'own3', text: '' }]
+    }
+    const html = labelPage(db, { items: [{ itemId: shirt.id, copies: 1 }, { itemId: plain.id, copies: 1 }], options })
+    expect(html).toContain('Size: M')
+    expect(html).toContain('Colour: Navy')
+    expect(html).not.toContain('Cotton') // field switched off
+    expect(html.match(/Size:/g)).toHaveLength(1) // left off where the item has no value
+    const [d] = labelData(db, { items: [{ itemId: shirt.id, copies: 1 }], options })
+    expect(d.own).toEqual([{ label: 'Size', value: 'M' }, { label: 'Colour', value: 'Navy' }, null, null])
+    expect(lineText({ field: 'own4', text: '' }, d, 'Shop')).toBe('')
+    // A long name would push the value off a small label, so the value prints alone.
+    expect(lineText({ field: 'own1', text: '' }, { ...d, own: [{ label: 'Design no.', value: ' D-220 ' }] }, 'Shop')).toBe('D-220')
   })
 })

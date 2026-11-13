@@ -10,12 +10,18 @@ import { openDatabase, type DB } from './db/connection'
 import { migrations } from './db/migrations'
 import { BusinessRegistry } from './registry'
 import { getBusiness, setupBusiness } from './services/business'
+import { setAuditUser } from './services/audit'
+import type { AuthUser } from '@shared/auth'
 import { UserError, uuid } from './util'
 
 export class Session {
   readonly registry: BusinessRegistry
   private db: DB | null = null
   private currentId: string | null = null
+  /** Who is signed in to the open business (null when no one, or logins are off). */
+  private signedIn: AuthUser | null = null
+  /** When the signed-in user last did something (ms), for the idle lock. */
+  lastActive = 0
   private readonly baseDir: string
   /** How many daily automatic backups to keep per business. */
   static readonly KEEP_AUTO = 7
@@ -39,6 +45,17 @@ export class Session {
     return this.db
   }
 
+  get user(): AuthUser | null {
+    return this.signedIn
+  }
+
+  /** Sign a user in to the open business (after their password was checked), or out (null). */
+  setUser(user: AuthUser | null): void {
+    this.signedIn = user
+    this.lastActive = Date.now()
+    if (this.db) setAuditUser(this.db, user?.id ?? null)
+  }
+
   current(): Business | null {
     return this.db ? getBusiness(this.db) : null
   }
@@ -58,6 +75,7 @@ export class Session {
     this.close()
     this.db = db
     this.currentId = id
+    this.setUser(null)
     this.registry.markOpened(id)
     return getBusiness(db)
   }
@@ -83,6 +101,7 @@ export class Session {
     this.db?.close()
     this.db = null
     this.currentId = null
+    this.signedIn = null
   }
 
   /** Keep the registry name in step after the profile is edited. */

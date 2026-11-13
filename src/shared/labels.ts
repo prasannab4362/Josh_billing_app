@@ -39,7 +39,7 @@ export type LabelSymbol = 'barcode' | 'qr'
 /** What a text line on the label shows. */
 export type LabelField =
   | 'none' | 'business' | 'name' | 'price' | 'mrp' | 'saving' | 'code' | 'category' | 'hsn' | 'description'
-  | 'batch' | 'model' | 'mfg' | 'exp' | 'custom'
+  | 'batch' | 'model' | 'mfg' | 'exp' | 'own1' | 'own2' | 'own3' | 'own4' | 'custom'
 
 export const LABEL_FIELDS: Record<LabelField, string> = {
   none: 'Nothing',
@@ -56,6 +56,11 @@ export const LABEL_FIELDS: Record<LabelField, string> = {
   model: 'Model no. (enter per item)',
   mfg: 'Mfg. date (enter per item)',
   exp: 'Exp. date (enter per item)',
+  // The business's own item fields (Settings › Extra fields), e.g. Size, Colour, Design no.; the screen shows their names.
+  own1: 'Own item field 1',
+  own2: 'Own item field 2',
+  own3: 'Own item field 3',
+  own4: 'Own item field 4',
   custom: 'Your own text…'
 }
 
@@ -126,6 +131,8 @@ export interface LabelData {
   mrp: number | null
   /** Batch, model and dates typed for this print. */
   extra?: LabelExtra
+  /** The item's own fields, by position (Size, Colour…): name and value, or null when switched off. */
+  own?: ({ label: string; value: string } | null)[]
 }
 
 export const MAX_LABEL_LINES = 4
@@ -188,6 +195,16 @@ export function lineText(line: LabelLine, d: LabelData, businessName: string): s
     case 'model': return d.extra?.model?.trim() ? `Model: ${d.extra.model.trim()}` : ''
     case 'mfg': return d.extra?.mfg?.trim() ? `Mfg: ${monthText(d.extra.mfg)}` : ''
     case 'exp': return d.extra?.exp?.trim() ? `Exp: ${monthText(d.extra.exp)}` : ''
+    case 'own1':
+    case 'own2':
+    case 'own3':
+    case 'own4': {
+      const f = d.own?.[Number(line.field.slice(3)) - 1]
+      if (!f || !f.value.trim()) return ''
+      // Short names read well in front ("Size: M"); a long one ("Design no.") would push the value itself off a
+      // small label, so then the value is printed alone ("D-220").
+      return f.label.length <= 6 ? `${f.label}: ${f.value.trim()}` : f.value.trim()
+    }
     case 'custom': return line.text.trim()
     default: return ''
   }
@@ -287,6 +304,8 @@ ${page}
   align-items: center; justify-content: center; text-align: center; line-height: 1.12; }
 .head { font-size: 0.85em; font-weight: 700; color: #222; }
 .head, .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* Room below each line so g, p and y are not cut off, taken back by the margin so the label still fits. */
+.head, .line { padding-bottom: 0.14em; margin-bottom: -0.14em; }
 .line.first { font-weight: 700; }
 .bars { width: 100%; max-width: 60mm; flex: 1 1 auto; min-height: ${mm(Math.max(5, L.height * 0.3))}; max-height: ${mm(Math.max(6, L.height * 0.42))}; margin: 0.5mm 0 0.2mm; }
 .bars svg { width: 100%; height: 100%; display: block; fill: #000; }

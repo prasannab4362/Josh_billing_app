@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { STATES } from '@shared/states'
+import { Icon } from './Icon'
 
 interface FieldProps {
   label: string
@@ -61,7 +62,12 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 export function Banner({ kind, children }: { kind: 'error' | 'success'; children: ReactNode }) {
-  return <div className={`banner ${kind}`}>{children}</div>
+  return (
+    <div className={`banner ${kind}`} role={kind === 'error' ? 'alert' : 'status'}>
+      <Icon name={kind === 'error' ? 'alert' : 'checkCircle'} size={18} />
+      <span>{children}</span>
+    </div>
+  )
 }
 
 export function TextArea({ value, onChange, rows = 2, placeholder }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
@@ -86,7 +92,7 @@ export function Modal({ title, onClose, footer, children, wide }: ModalProps) {
       <div className={wide ? 'modal wide' : 'modal'} role="dialog" aria-label={title} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
         <header className="modal-head">
           <h2>{title}</h2>
-          <button className="chip-x" title="Close" onClick={onClose}>×</button>
+          <button className="icon-btn" title="Close" onClick={onClose}><Icon name="x" /></button>
         </header>
         <div className="modal-body">{children}</div>
         <footer className="modal-foot">{footer}</footer>

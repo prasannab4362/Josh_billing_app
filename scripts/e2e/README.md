@@ -14,6 +14,12 @@ Electron window over the Chrome DevTools Protocol.
 
    (On macOS/Linux: `./node_modules/.bin/electron . ...`.) Create a test business in the window the first time.
 3. In another terminal: `node scripts/e2e/smoke.mjs e2e-out`
+4. Business-type check (ten trades, 64 checks): `node scripts/e2e/business-check.mjs e2e-out`. It creates new test
+   businesses in the test profile each run; see `docs/business-guides/`.
+5. Shop tour (barcodes, QR, labels, scan billing, bill and invoice for six shops, 69 checks; needs Python with
+   `opencv-contrib-python`): `node scripts/e2e/shop-tour.mjs e2e-out`. Screenshots go to `e2e-out/tour`.
+6. Logo and signature (21 checks, after the shop tour): `node scripts/e2e/logo-signature.mjs e2e-out`. Pictures go to
+   `e2e-out/logo`.
 
 Stop the app afterwards by closing its window (or by killing only the `electron` processes you started).
 

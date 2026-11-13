@@ -1,6 +1,7 @@
 // The calls the renderer can make. Each method name is also its IPC channel.
 
 import type { PaperSize } from './models'
+import type { AuthStatus, AuthUser, NewUserInput, UserSummary, UserUpdate } from './auth'
 import type { InvoicePrintData } from './invoiceHtml'
 import type { ReportDoc } from './reportDoc'
 import type { Gstr1, Gstr3b } from './gstReturns'
@@ -155,9 +156,10 @@ export interface BillingApi {
   saveBill(type: BillType, id: string | null, input: InvoiceInput): Promise<Invoice>
   deleteBill(type: BillType, id: string): Promise<void>
   /** Everything needed to draw the printed bill. */
-  getBillPrint(type: BillType, id: string): Promise<InvoicePrintData>
-  exportBillPdf(type: BillType, id: string): Promise<string | null>
-  printBill(type: BillType, id: string): Promise<boolean>
+  /** paper: print this bill on another paper than the business default (e.g. an A4 invoice from a receipt shop). */
+  getBillPrint(type: BillType, id: string, paper?: PaperSize): Promise<InvoicePrintData>
+  exportBillPdf(type: BillType, id: string, paper?: PaperSize): Promise<string | null>
+  printBill(type: BillType, id: string, paper?: PaperSize): Promise<boolean>
 
   createAdjustment(input: StockAdjustmentInput): Promise<string>
   deleteAdjustment(id: string): Promise<void>
@@ -217,6 +219,24 @@ export interface BillingApi {
   /** Save a report as PDF or CSV (asks where). Returns the path, or null if cancelled. */
   exportReport(doc: ReportDoc, format: 'pdf' | 'csv'): Promise<string | null>
   printReport(doc: ReportDoc): Promise<boolean>
+
+  // ---------- Logins (owner and staff) ----------
+  /** The open business (id and name only), whether logins are on, and who is signed in. Needs no sign-in. */
+  authStatus(): Promise<AuthStatus>
+  login(username: string, password: string): Promise<AuthUser>
+  logout(): Promise<void>
+  /** Switch logins on with the first owner; returns the one-time recovery code. */
+  setupOwner(input: { name: string; username: string; password: string }): Promise<{ user: AuthUser; recoveryCode: string }>
+  /** Forgotten owner password: set a new one with the recovery code; returns a new recovery code. */
+  recoverOwner(code: string, username: string, newPassword: string): Promise<string>
+  listUsers(): Promise<UserSummary[]>
+  createUser(input: NewUserInput): Promise<UserSummary>
+  updateUser(id: string, update: UserUpdate): Promise<UserSummary>
+  changeMyPassword(current: string, next: string): Promise<void>
+  renewRecoveryCode(): Promise<string>
+  setIdleMinutes(minutes: number): Promise<number>
+  /** Switch logins off (owner, with their password). */
+  turnOffLogins(password: string): Promise<void>
 }
 
 export interface LabelRequest {
@@ -358,7 +378,19 @@ const methods: Record<keyof BillingApi, true> = {
   gstSummary: true,
   itemSales: true,
   exportReport: true,
-  printReport: true
+  printReport: true,
+  authStatus: true,
+  login: true,
+  logout: true,
+  setupOwner: true,
+  recoverOwner: true,
+  listUsers: true,
+  createUser: true,
+  updateUser: true,
+  changeMyPassword: true,
+  renewRecoveryCode: true,
+  setIdleMinutes: true,
+  turnOffLogins: true
 }
 
 export const API_METHODS = Object.keys(methods) as (keyof BillingApi)[]

@@ -46,6 +46,10 @@ src/shared/          used by main and renderer: models, ipc contract, GST maths 
                      printSettings, itemFields, features, imports, validation, states, gstin
 src/renderer/src/    React: App/Shell, screens/<area>/..., components/, api.ts, styles.css
 scripts/e2e/         drive the running app over CDP (see its README)
+docs/business-guides/ one guide per trade (wholesale, retail, grocery, fish market, services, medical,
+                     electrical, stationery, jewellery, gold covering), checked by scripts/e2e/business-check.mjs
+docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, labels, scan billing, bill vs invoice
+                     (screenshots and checks come from scripts/e2e/shop-tour.mjs)
 ```
 
 ## Rules every change must keep
@@ -71,14 +75,23 @@ scripts/e2e/         drive the running app over CDP (see its README)
 - **Business settings** that are not columns live in the `setting` table as JSON. Each has a `complete...()` function
   that fills missing parts from defaults, so older files keep working: print design (`print.design`), line details
   (`item.fields`), features and own fields (`features`), label sizes and design (`labels.sizes`, `labels.design`).
-- **Images** (logo, signature, item photo) are data URLs stored in the database, so backups carry them.
+- **Images** (logo, signature, item photo) are data URLs stored in the database, so backups carry them. Pictures are
+  read with FileReader (`renderer/src/images.ts`): the page's security policy blocks `blob:` images. A signature photo
+  has its paper made transparent on upload (`shared/inkOnly.ts`), so it prints cleanly. The logo prints on every paper;
+  the signature on A4/A5, and on thermal bills only with `show.signatureOnBill`.
 - **Printing:** the same HTML from `src/shared/invoiceHtml.ts` is used for the preview, printing and PDF. The data
-  comes from `printData()` in `src/main/ipc.ts`; add new print inputs there.
+  comes from `printData()` in `src/main/ipc.ts`; add new print inputs there. Any bill can be printed on another paper
+  than the business default (the `paper` argument of `getBillPrint` / `printBill` / `exportBillPdf`, shown as the
+  "Print as" switch: bill 80/58 mm or invoice A4/A5).
 - **Nothing is sent from the app.** WhatsApp opens through `https://wa.me/` links with the text filled in; the user
   presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Google Business and Google review links; keep that
   list short. Posters and catalogues are made on the computer; nothing is uploaded.
 - **Imports are two-step:** `previewImport` checks every row and saves nothing; `commitImport` saves the good rows in
   one transaction. On an update, a blank cell keeps the saved value.
+- **Look and feel:** colours come from the CSS variables at the top of `styles.css`, which have a light and a dark
+  set (`data-theme` on `<html>`, see `renderer/src/theme.ts`). Use the variables, never fixed colours, or dark mode
+  breaks. Icons come from `components/Icon.tsx` (our own line drawings; add new ones there, no icon library);
+  `PageTitle`, `IconTile` and `EmptyState` give pages their header, tinted icons and empty states.
 - Write user-facing text in plain English for a shop owner. Use Indian formats (₹1,23,456.78, DD-MM-YYYY on prints).
 
 ## Testing
@@ -86,8 +99,16 @@ scripts/e2e/         drive the running app over CDP (see its README)
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 255 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 260 tests at the time of writing. Add tests for every rule you add, including the refusals.
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
+- `scripts/e2e/business-check.mjs` sets up one test business per trade and checks its everyday bills (totals, GST
+  split, stock, payments, PDF). Run it after changes to billing, tax, units, stock or printing, and update the
+  matching guide in `docs/business-guides/` when a trade's workflow changes.
+- `scripts/e2e/shop-tour.mjs` checks barcodes, QR codes and labels for six shops (reads every printed code back with
+  OpenCV via `scripts/e2e/read-codes.py`), bills by scanning, and prints each bill as a receipt and as an A4 invoice.
+  Run it after changes to labels, barcodes, scanning or printing, and refresh `docs/setup-guide/images` from its output.
+- `scripts/e2e/logo-signature.mjs` uploads a logo and a signature photo through the real Settings › Business boxes and
+  checks both print on A4, A5, 80 mm and 58 mm (run shop-tour.mjs first; it uses that clothing shop).
 - Barcodes/QR were verified by reading rendered labels with OpenCV; the QR encoder was checked for all 40 versions
   × 4 levels. If you change `barcode.ts`, `qr.ts` or `labels.ts`, check again the same way.
 

@@ -43,6 +43,8 @@ export interface PrintShow {
   notes: boolean
   terms: boolean
   signature: boolean
+  /** The signature also on small thermal bills (counter receipts usually leave it off). */
+  signatureOnBill: boolean
 }
 
 export interface PrintSettings {
@@ -66,7 +68,7 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
     logo: true, businessAddress: true, businessPhone: true, businessEmail: true, businessGstin: true,
     partyPhone: true, partyGstin: true, shipTo: true, serialNo: true, hsn: true, itemDescription: true, itemDetails: true,
     discountColumn: true, taxColumn: true, taxSummary: true, amountInWords: true, receivedBalance: true,
-    bankDetails: true, upiQr: true, notes: true, terms: true, signature: true
+    bankDetails: true, upiQr: true, notes: true, terms: true, signature: true, signatureOnBill: false
   },
   footer: '',
   defaultTerms: ''
@@ -94,7 +96,8 @@ export const SHOW_LABELS: Record<keyof PrintShow, string> = {
   upiQr: 'UPI QR code to pay',
   notes: 'Notes',
   terms: 'Terms and conditions',
-  signature: 'Signature and signatory'
+  signature: 'Signature and signatory',
+  signatureOnBill: 'Signature on small (thermal) bills too'
 }
 
 /** Settings as saved, with anything missing (older saves, new switches) filled from the defaults. */

@@ -4,7 +4,7 @@ import { completePrintSettings, DEFAULT_PRINT_SETTINGS, upiPayLink, type PrintSe
 import { EMPTY_TEST_PROFILE } from '@shared/testFixtures'
 import type { Business, MoneyAccount } from '@shared/models'
 import { openDatabase, type DB } from '../db/connection'
-import { setupBusiness, getBusiness } from './business'
+import { setupBusiness, getBusiness, setBusinessImage } from './business'
 import { getPrintSettings, sampleInvoice, samplePrintHtml, savePrintSettings } from './printDesign'
 
 let db: DB
@@ -56,6 +56,25 @@ describe('print settings', () => {
     ]
     for (const [k, text] of off) expect(html(withShow(k, false)), k).not.toContain(text)
     expect(html({ footer: 'Thank you for shopping!' })).toContain('<div class="footer">Thank you for shopping!</div>')
+  })
+
+  it("print the logo on every paper, and the signature on invoices (on small bills only when chosen)", () => {
+    const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const SIGN = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    setBusinessImage(db, 'logo', LOGO)
+    setBusinessImage(db, 'signature', SIGN)
+    const a4 = html({})
+    expect(a4).toContain(`<img class="logo" src="${LOGO}"`)
+    // On A4 the signature shows (hide-thermal only hides it on thermal paper).
+    expect(a4).toContain(`<div>For Kumar Stores</div><img src="${SIGN}"`)
+    expect(a4).toContain('<body class="theme-classic">')
+    const bill = html({}, 'thermal80')
+    expect(bill).toContain(`<img class="logo" src="${LOGO}"`)
+    expect(bill).toContain('<div class="sign hide-thermal">') // left off small bills by default
+    const signed = html({ show: { ...DEFAULT_PRINT_SETTINGS.show, signatureOnBill: true } }, 'thermal80')
+    expect(signed).toContain(`<div class="sign"><div>For Kumar Stores</div><img src="${SIGN}"`)
+    expect(html(withShow('logo', false))).not.toContain('class="logo"')
+    expect(getPrintSettings(db).show.signatureOnBill).toBe(false)
   })
 
   it('print a UPI QR code for the balance due, only when there is a UPI ID and something due', () => {
