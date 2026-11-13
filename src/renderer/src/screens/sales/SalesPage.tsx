@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BILL_INFO, payDirection, PURCHASE_TYPES, SALE_TYPES } from '@shared/billTypes'
-import type { BillType, Business, Invoice, InvoiceStatus, InvoiceSummary } from '@shared/models'
+import type { BillType, Business, Invoice, InvoiceStatus, InvoiceSummary, PaperSize } from '@shared/models'
 import { formatINR } from '@shared/money'
 import { invoiceHtml } from '@shared/invoiceHtml'
 import { api, errorMessage } from '../../api'
 import { Banner } from '../../components/Field'
+import { Icon, PageTitle, type IconName } from '../../components/Icon'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 import { PaymentForm } from '../payments/PaymentForm'
 import { InvoiceEditor } from './InvoiceEditor'
@@ -20,9 +21,23 @@ const RETURN_LABEL: Partial<Record<InvoiceStatus, string>> = { paid: 'Settled', 
 
 export function StatusBadge({ status, type }: { status: InvoiceStatus; type?: BillType }) {
   const label = (type && BILL_INFO[type].returnOf && RETURN_LABEL[status]) || STATUS_LABEL[status]
-  const cls = status === 'converted' ? 'paid' : status === 'open' ? 'unpaid' : status
+  const cls = status
   return <span className={`status ${cls}`}>{label}</span>
 }
+
+/** Each kind of bill has its own picture on tabs and titles. */
+export const BILL_ICON: Record<BillType, IconName> = {
+  SALE_INVOICE: 'receipt', ESTIMATE: 'file', SALE_ORDER: 'list', DELIVERY_CHALLAN: 'box', SALE_RETURN: 'undo',
+  PURCHASE_BILL: 'cart', PURCHASE_ORDER: 'list', PURCHASE_RETURN: 'undo'
+}
+
+/** Papers a bill can be printed on: a small counter bill or a full invoice sheet. */
+const PAPERS: { value: PaperSize; label: string; hint: string }[] = [
+  { value: 'thermal80', label: 'Bill 80 mm', hint: 'Counter receipt on an 80 mm (3 inch) thermal printer' },
+  { value: 'thermal58', label: 'Bill 58 mm', hint: 'Counter receipt on a 58 mm (2 inch) thermal printer' },
+  { value: 'A4', label: 'Invoice A4', hint: 'Full tax invoice on A4 paper' },
+  { value: 'A5', label: 'Invoice A5', hint: 'Full tax invoice on A5 (half A4) paper' }
+]
 
 type Mode =
   | { name: 'list' }
@@ -104,7 +119,7 @@ export function BillsPage({ business, side, open }: PageProps) {
         <nav className="tabs">
           {types.map((t) => (
             <button key={t} className={t === type ? 'tab active' : 'tab'} onClick={() => go(t, { name: 'list' })}>
-              {BILL_INFO[t].plural.replace(/ \(.*\)$/, '')}
+              <Icon name={BILL_ICON[t]} size={16} />{BILL_INFO[t].plural.replace(/ \(.*\)$/, '')}
             </button>
           ))}
         </nav>
@@ -157,9 +172,9 @@ function BillList({ type, business, message, onOpen, onNew }: ListProps) {
   return (
     <div>
       <div className="page-head">
-        <h1>{info.plural}</h1>
+        <PageTitle icon={BILL_ICON[type]} tone={info.side === 'sale' ? 'accent' : 'violet'} title={info.plural} sub={info.side === 'sale' ? 'Bills you give to customers' : 'Bills you get from suppliers'} />
         <span className="spacer" />
-        <button className="btn primary" onClick={onNew}>{info.newLabel}</button>
+        <button className="btn primary" onClick={onNew}><Icon name="plus" size={17} />{info.newLabel.replace(/^\+ /, '')}</button>
       </div>
       <div className="stats">
         <div className="stat"><div className="label">Total</div><div className="value">{formatINR(total)}</div></div>
@@ -178,7 +193,10 @@ function BillList({ type, business, message, onOpen, onNew }: ListProps) {
       {message && <Banner kind={message.kind}>{message.text}</Banner>}
       {error && <Banner kind="error">{error}</Banner>}
       <div className="toolbar">
-        <input className="input search" placeholder={`Search number or ${partyWord.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="search-wrap">
+          <Icon name="search" size={16} />
+          <input className="input search" placeholder={`Search number or ${partyWord.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <select className="input" value={period} onChange={(e) => setPeriod(e.target.value as PeriodKey)}>
           {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
@@ -260,9 +278,11 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
   const [version, setVersion] = useState(0)
   const [printData, setPrintData] = useState<InvoicePrintData | null>(null)
   const [sharing, setSharing] = useState(false)
+  // Paper for this bill: null = the business's usual paper (Settings › Preferences).
+  const [paper, setPaper] = useState<PaperSize | null>(null)
 
   useEffect(() => {
-    api.getBillPrint(type, id).then(
+    api.getBillPrint(type, id, paper ?? undefined).then(
       (data) => {
         setPrintData(data)
         setBill(data.invoice)
@@ -270,7 +290,7 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
       },
       (e) => setNote({ kind: 'error', text: errorMessage(e) })
     )
-  }, [id, version])
+  }, [id, version, paper])
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true)
@@ -285,10 +305,10 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
 
   const pdf = () =>
     run(async () => {
-      const path = await api.exportBillPdf(type, id)
+      const path = await api.exportBillPdf(type, id, paper ?? undefined)
       if (path) setNote({ kind: 'success', text: `PDF saved to ${path}` })
     })
-  const print = () => run(async () => void (await api.printBill(type, id)))
+  const print = () => run(async () => void (await api.printBill(type, id, paper ?? undefined)))
   const remove = () =>
     run(async () => {
       const effect = info.posts ? ' Stock and the party balance will be restored.' : ''
@@ -305,25 +325,25 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
   return (
     <div>
       <div className="page-head">
-        <button className="btn" onClick={onBack}>← {info.plural.replace(/ \(.*\)$/, '')}</button>
+        <button className="btn" onClick={onBack}><Icon name="arrowLeft" size={17} />{info.plural.replace(/ \(.*\)$/, '')}</button>
         <h1>{bill ? `${info.noun} ${bill.number}` : info.noun}</h1>
         {bill && <StatusBadge status={bill.status} type={type} />}
         <span className="spacer" />
         {bill && info.posts && bill.balanceDue > 0 && bill.partyId && (
-          <button className="btn" onClick={() => setPaying(true)} disabled={busy}>{payLabel}</button>
+          <button className="btn" onClick={() => setPaying(true)} disabled={busy}><Icon name="wallet" size={17} />{payLabel}</button>
         )}
         {bill && bill.status !== 'converted' && info.convertsTo.map((t) => (
-          <button key={t} className="btn" onClick={() => onMake(t)} disabled={busy}>Convert to {BILL_INFO[t].noun.toLowerCase()}</button>
+          <button key={t} className="btn" onClick={() => onMake(t)} disabled={busy}><Icon name="swap" size={17} />Convert to {BILL_INFO[t].noun.toLowerCase()}</button>
         ))}
         {bill && returnType && bill.partyId && (
-          <button className="btn" onClick={() => onMake(returnType)} disabled={busy}>{type === 'SALE_INVOICE' ? 'Sale return' : 'Purchase return'}</button>
+          <button className="btn" onClick={() => onMake(returnType)} disabled={busy}><Icon name="undo" size={17} />{type === 'SALE_INVOICE' ? 'Sale return' : 'Purchase return'}</button>
         )}
-        <button className="btn" onClick={onEdit} disabled={busy}>Edit</button>
-        <button className="btn" onClick={remove} disabled={busy}>Delete</button>
-        <button className="btn" onClick={pdf} disabled={busy}>PDF</button>
-        {bill && <button className="btn" onClick={() => setSharing(true)} disabled={busy}>WhatsApp</button>}
-        <button className="btn" onClick={print} disabled={busy}>Print</button>
-        <button className="btn primary" onClick={onNew}>{info.newLabel}</button>
+        <button className="btn" onClick={onEdit} disabled={busy}><Icon name="edit" size={16} />Edit</button>
+        <button className="btn danger" onClick={remove} disabled={busy}><Icon name="trash" size={17} />Delete</button>
+        <button className="btn" onClick={pdf} disabled={busy}><Icon name="file" size={17} />PDF</button>
+        {bill && <button className="btn" onClick={() => setSharing(true)} disabled={busy}><Icon name="chat" size={17} />WhatsApp</button>}
+        <button className="btn" onClick={print} disabled={busy}><Icon name="printer" size={17} />Print</button>
+        <button className="btn primary" onClick={onNew}><Icon name="plus" size={17} />{info.newLabel.replace(/^\+ /, '')}</button>
       </div>
       {note && <Banner kind={note.kind}>{note.text}</Banner>}
       {bill && (
@@ -375,7 +395,20 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
           }}
         />
       )}
-      {html && <iframe className="invoice-preview" title="Preview" sandbox="" srcDoc={html} />}
+      {printData && (
+        <div className="print-as">
+          <span className="muted"><Icon name="printer" size={16} /> Print as</span>
+          <div className="seg">
+            {PAPERS.map((p) => (
+              <button key={p.value} className={(paper ?? printData.paper) === p.value ? 'on' : ''} onClick={() => setPaper(p.value)} title={p.hint}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <span className="muted small-text">{(paper ?? printData.paper).startsWith('thermal') ? 'Small bill for the counter printer' : 'Full GST invoice on a sheet'}</span>
+        </div>
+      )}
+      {html && <iframe className={printData?.paper.startsWith('thermal') ? 'invoice-preview thermal' : 'invoice-preview'} title="Preview" sandbox="" srcDoc={html} />}
     </div>
   )
 }

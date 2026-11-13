@@ -1,6 +1,8 @@
 // Optional parts of bills and records, switched on in Settings: transport and PO details,
 // the time on prints, profit while billing, and fields of the business's own for parties and items.
 
+import { isSafeExternalUrl } from './share'
+
 export interface CustomField {
   on: boolean
   label: string
@@ -51,7 +53,8 @@ export function completeFeatures(saved: Partial<FeatureSettings> | null | undefi
     poDetails: !!s.poDetails,
     partyFields: fields(s.partyFields),
     itemFields: fields(s.itemFields),
-    reviewLink: /^https:\/\/\S{4,300}$/.test(String(s.reviewLink ?? '').trim()) ? String(s.reviewLink).trim() : ''
+    // Only links the app will actually open (Google review / maps / business pages).
+    reviewLink: String(s.reviewLink ?? '').trim().length <= 300 && isSafeExternalUrl(String(s.reviewLink ?? '').trim()) ? String(s.reviewLink).trim() : ''
   }
 }
 

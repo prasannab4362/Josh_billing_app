@@ -50,9 +50,9 @@ export function BusinessTab({ business, onSaved }: { business: Business; onSaved
         />
         <ImagePicker
           title="Signature"
-          hint="Printed above “Authorised signatory”. Sign on white paper and photograph it."
+          hint="Printed above “Authorised signatory”. Sign on white paper and photograph it: the paper is removed, only the ink prints."
           value={business.signature}
-          options={{ maxWidth: 500, maxHeight: 160, format: 'png' }}
+          options={{ maxWidth: 500, maxHeight: 160, format: 'png', inkOnly: true }}
           onChange={async (v) => onSaved(await api.setBusinessImage('signature', v))}
           onMessage={setMessage}
         />

@@ -3,6 +3,7 @@ import type { Item, StockMovement } from '@shared/models'
 import { formatINR } from '@shared/money'
 import { formatQty } from '@shared/qty'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner } from '../../components/Field'
 import { ItemForm } from './ItemForm'
 import { AdjustStockForm, StockSummaryView } from './StockViews'
@@ -35,30 +36,30 @@ function matches(i: Item, filter: Filter, category: string, search: string): boo
 }
 
 
-export function ItemsPage() {
+export function ItemsPage({ startNew = false }: { startNew?: boolean }) {
   const [tab, setTab] = useState<'items' | 'summary'>('items')
   return (
     <div>
       <div className="page-head">
-        <h1>Items</h1>
+        <PageTitle icon="box" tone="amber" title="Items" sub="Products, services, prices and stock" />
       </div>
       <nav className="tabs">
-        <button className={tab === 'items' ? 'tab active' : 'tab'} onClick={() => setTab('items')}>Items</button>
-        <button className={tab === 'summary' ? 'tab active' : 'tab'} onClick={() => setTab('summary')}>Stock summary</button>
+        <button className={tab === 'items' ? 'tab active' : 'tab'} onClick={() => setTab('items')}><Icon name="list" size={16} />Items</button>
+        <button className={tab === 'summary' ? 'tab active' : 'tab'} onClick={() => setTab('summary')}><Icon name="chart" size={16} />Stock summary</button>
       </nav>
-      {tab === 'items' ? <ItemsList /> : <StockSummaryView />}
+      {tab === 'items' ? <ItemsList startNew={startNew} /> : <StockSummaryView />}
     </div>
   )
 }
 
-function ItemsList() {
+function ItemsList({ startNew }: { startNew: boolean }) {
   const [items, setItems] = useState<Item[]>([])
   const [filter, setFilter] = useState<Filter>('all')
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [movements, setMovements] = useState<StockMovement[]>([])
-  const [editing, setEditing] = useState<Item | 'new' | null>(null)
+  const [editing, setEditing] = useState<Item | 'new' | null>(startNew ? 'new' : null)
   const [adjusting, setAdjusting] = useState<Item | null>(null)
   const [labelsFor, setLabelsFor] = useState<string[] | null>(null)
   const [importing, setImporting] = useState(false)
@@ -143,11 +144,11 @@ function ItemsList() {
   return (
     <div>
       <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
-        <button className="btn" onClick={() => setImporting(true)}>Import from Excel</button>
-        <button className="btn" onClick={exportExcel}>Export to Excel</button>
-        <button className="btn" onClick={() => setBulk(true)} disabled={!items.length}>Bulk update</button>
-        <button className="btn" onClick={() => setLabelsFor([])}>Print barcode / QR labels</button>
-        <button className="btn primary" onClick={() => setEditing('new')}>+ Add item</button>
+        <button className="btn" onClick={() => setImporting(true)}><Icon name="upload" size={17} />Import from Excel</button>
+        <button className="btn" onClick={exportExcel}><Icon name="download" size={17} />Export to Excel</button>
+        <button className="btn" onClick={() => setBulk(true)} disabled={!items.length}><Icon name="layers" size={17} />Bulk update</button>
+        <button className="btn" onClick={() => setLabelsFor([])}><Icon name="barcode" size={17} />Print labels</button>
+        <button className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size={17} />Add item</button>
       </div>
       <div className="stats">
         <div className="stat">
@@ -166,7 +167,10 @@ function ItemsList() {
       {message && <Banner kind={message.kind}>{message.text}</Banner>}
 
       <div className="toolbar">
-        <input className="input search" placeholder="Search name, code, barcode or HSN" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="search-wrap">
+          <Icon name="search" size={16} />
+          <input className="input search" placeholder="Search name, code, barcode or HSN" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
           {FILTERS.map((f) => (
             <option key={f.key} value={f.key}>{f.label}</option>
@@ -241,9 +245,9 @@ function ItemsList() {
               </span>
             </div>
             <span className="spacer" />
-            <button className="btn small" onClick={() => setLabelsFor([selected.id])}>Print labels</button>
+            <button className="btn small" onClick={() => setLabelsFor([selected.id])}><Icon name="barcode" size={15} />Print labels</button>
             {selected.trackStock && <button className="btn small" onClick={() => setAdjusting(selected)}>Adjust stock</button>}
-            <button className="btn small" onClick={() => setEditing(selected)}>Edit</button>
+            <button className="btn small" onClick={() => setEditing(selected)}><Icon name="edit" size={16} />Edit</button>
             <button className="btn small" onClick={() => toggleActive(selected)}>
               {selected.isActive ? 'Mark inactive' : 'Mark active'}
             </button>

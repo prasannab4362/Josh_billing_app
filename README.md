@@ -26,15 +26,27 @@ An offline GST billing, inventory and accounts app for Indian small businesses. 
 
 ## Development
 
-Needs Node.js 20 or later.
+Needs Node.js 22 or later.
 
 ```bash
-npm install        # also rebuilds better-sqlite3 for Electron
+npm install        # better-sqlite3 includes platform binaries
 npm run dev        # run the app with live reload
 npm test           # unit tests (run inside Electron's Node)
 npm run typecheck
 npm run build      # production build in out/
+npm run dist:win   # Windows x64 installer in dist/
 ```
+
+## Windows test installer
+
+Download `Josh-Billing-Setup-0.1.0-x64.exe` from the repository's GitHub Releases page.
+Copy it to another Windows x64 computer, run the installer and open the Josh Billing desktop shortcut.
+The installer includes Electron and SQLite, so the other computer can run the app offline without Node.js.
+This test build is unsigned. Windows may show an unknown-publisher warning.
+The security findings and checks still pending are recorded in `docs/TESTING-AND-SECURITY.md`.
+
+Packaging keeps better-sqlite3 13's supplied platform binaries. Its package declares `gypfile: false`,
+and `npmRebuild: false` prevents the packaging tool from attempting a source rebuild requiring Visual Studio.
 
 Code layout:
 

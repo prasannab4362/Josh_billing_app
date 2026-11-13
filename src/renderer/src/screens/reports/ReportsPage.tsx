@@ -4,9 +4,15 @@ import { formatCell, isNumeric, type ReportDoc, type ReportRow } from '@shared/r
 import { todayLocal } from '@shared/fy'
 import { api, errorMessage } from '../../api'
 import { Banner } from '../../components/Field'
+import { Icon, PageTitle, type IconName } from '../../components/Icon'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 import type { Go } from '../Dashboard'
 import { ageingDoc, dayBookDoc, gstDoc, gstr1Doc, gstr3bDoc, itemSalesDoc, profitLossDoc, registerDoc, stockDoc } from './builders'
+
+const REPORT_ICON: Record<string, IconName> = {
+  sales: 'receipt', purchases: 'cart', daybook: 'calendar', receivable: 'arrowIn', payable: 'arrowOut', pl: 'trendUp',
+  gst: 'percent', gstr1: 'file', gstr3b: 'shield', items: 'tag', stock: 'box'
+}
 
 export type ReportKey = 'sales' | 'purchases' | 'daybook' | 'receivable' | 'payable' | 'pl' | 'gst' | 'gstr1' | 'gstr3b' | 'items' | 'stock'
 
@@ -117,19 +123,19 @@ export function ReportsPage({ business, initial, go }: { business: Business; ini
           <div key={g}>
             <div className="menu-label">{g}</div>
             {REPORTS.filter((r) => r.group === g).map((r) => (
-              <button key={r.key} className={r.key === key ? 'nav active' : 'nav'} onClick={() => setKey(r.key)}>{r.label}</button>
+              <button key={r.key} className={r.key === key ? 'nav active' : 'nav'} onClick={() => setKey(r.key)}><Icon name={REPORT_ICON[r.key] ?? 'chart'} size={17} />{r.label}</button>
             ))}
           </div>
         ))}
       </nav>
       <div className="report-body">
         <div className="page-head">
-          <h1>{report.label}</h1>
+          <PageTitle icon={REPORT_ICON[key] ?? 'chart'} title={report.label} sub={report.group} />
           <span className="spacer" />
-          {key === 'gstr1' && <button className="btn primary" disabled={!doc || busy} onClick={() => run('json')}>JSON for GST portal</button>}
-          <button className="btn" disabled={!doc || busy} onClick={() => run('print')}>Print</button>
-          <button className="btn" disabled={!doc || busy} onClick={() => run('pdf')}>PDF</button>
-          <button className="btn" disabled={!doc || busy} onClick={() => run('csv')}>Excel (CSV)</button>
+          {key === 'gstr1' && <button className="btn primary" disabled={!doc || busy} onClick={() => run('json')}><Icon name="download" size={17} />JSON for GST portal</button>}
+          <button className="btn" disabled={!doc || busy} onClick={() => run('print')}><Icon name="printer" size={17} />Print</button>
+          <button className="btn" disabled={!doc || busy} onClick={() => run('pdf')}><Icon name="file" size={17} />PDF</button>
+          <button className="btn" disabled={!doc || busy} onClick={() => run('csv')}><Icon name="sheet" size={17} />Excel (CSV)</button>
         </div>
         {report.period === 'range' && (
           <div className="toolbar">

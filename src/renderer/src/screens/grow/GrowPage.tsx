@@ -7,6 +7,7 @@ import {
 import { catalogueHtml, DEFAULT_CATALOGUE, GOOGLE_BUSINESS_URL, googleProfileFields, type CatalogueOptions } from '@shared/share'
 import { formatINR } from '@shared/money'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner, Toggle } from '../../components/Field'
 
 type Tab = 'posters' | 'catalogue' | 'google'
@@ -27,10 +28,12 @@ export function GrowPage({ business }: { business: Business }) {
   const [reviewMode, setReviewMode] = useState(0)
   return (
     <div>
-      <h1>Grow your business</h1>
+      <div className="page-head">
+        <PageTitle icon="sparkles" tone="pink" title="Grow your business" sub="Posters, a product catalogue and WhatsApp messages, all made on this computer" />
+      </div>
       <nav className="tabs">
         {([['posters', 'Posters'], ['catalogue', 'Catalogue'], ['google', 'Google profile']] as [Tab, string][]).map(([t, label]) => (
-          <button key={t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}>{label}</button>
+          <button key={t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}><Icon name={t === 'posters' ? 'image' : t === 'catalogue' ? 'file' : 'globe'} size={16} />{label}</button>
         ))}
       </nav>
       {tab === 'posters' && <Posters business={business} startWith={reviewMode ? 'review-us' : undefined} key={reviewMode} />}

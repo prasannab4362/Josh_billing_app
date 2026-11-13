@@ -3,6 +3,7 @@ import type { Party, PartyKind, PaymentDirection, Statement } from '@shared/mode
 import { formatINR } from '@shared/money'
 import { stateName } from '@shared/states'
 import { api, errorMessage } from '../../api'
+import { Icon, PageTitle } from '../../components/Icon'
 import { Banner } from '../../components/Field'
 import { StatementTable } from '../../components/StatementTable'
 import { PaymentForm } from '../payments/PaymentForm'
@@ -42,12 +43,12 @@ export function BalanceText({ paise }: { paise: number }) {
   )
 }
 
-export function PartiesPage({ openId = null }: { openId?: string | null }) {
+export function PartiesPage({ openId = null, startNew = false }: { openId?: string | null; startNew?: boolean }) {
   const [parties, setParties] = useState<Party[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(openId)
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
-  const [editing, setEditing] = useState<Party | 'new' | null>(null)
+  const [editing, setEditing] = useState<Party | 'new' | null>(startNew ? 'new' : null)
   const [importing, setImporting] = useState(false)
   const [reminding, setReminding] = useState<{ party: Party; business: Business; bank: MoneyAccount | null } | null>(null)
   const [paying, setPaying] = useState<{ direction: PaymentDirection; partyId: string } | null>(null)
@@ -119,11 +120,11 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
   return (
     <div>
       <div className="page-head">
-        <h1>Parties</h1>
+        <PageTitle icon="users" tone="teal" title="Parties" sub="Customers and suppliers, with what they owe" />
         <span className="spacer" />
-        <button className="btn" onClick={() => setImporting(true)}>Import from Excel</button>
-        <button className="btn" onClick={exportExcel}>Export to Excel</button>
-        <button className="btn primary" onClick={() => setEditing('new')}>+ Add party</button>
+        <button className="btn" onClick={() => setImporting(true)}><Icon name="upload" size={17} />Import from Excel</button>
+        <button className="btn" onClick={exportExcel}><Icon name="download" size={17} />Export to Excel</button>
+        <button className="btn primary" onClick={() => setEditing('new')}><Icon name="plus" size={17} />Add party</button>
       </div>
       <div className="stats">
         <div className="stat">
@@ -144,7 +145,10 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
       <div className="split">
         <div className="list-panel">
           <div className="list-tools">
-            <input className="input" placeholder="Search name, phone or GSTIN" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="search-wrap">
+          <Icon name="search" size={16} />
+          <input className="input" placeholder="Search name, phone or GSTIN" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
             <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
               {FILTERS.map((f) => (
                 <option key={f.key} value={f.key}>{f.label}</option>
@@ -180,13 +184,13 @@ export function PartiesPage({ openId = null }: { openId?: string | null }) {
               </div>
               <span className="spacer" />
               {selected.kind !== 'supplier' && (
-                <button className="btn small primary" onClick={() => setPaying({ direction: 'in', partyId: selected.id })}>Receive payment</button>
+                <button className="btn small primary" onClick={() => setPaying({ direction: 'in', partyId: selected.id })}><Icon name="arrowIn" size={15} />Receive payment</button>
               )}
               {selected.kind !== 'customer' && (
-                <button className="btn small primary" onClick={() => setPaying({ direction: 'out', partyId: selected.id })}>Make payment</button>
+                <button className="btn small primary" onClick={() => setPaying({ direction: 'out', partyId: selected.id })}><Icon name="arrowOut" size={15} />Make payment</button>
               )}
-              <button className="btn small" onClick={() => remind(selected)}>{selected.balance > 0 ? 'WhatsApp reminder' : 'WhatsApp'}</button>
-              <button className="btn small" onClick={() => setEditing(selected)}>Edit</button>
+              <button className="btn small" onClick={() => remind(selected)}><Icon name="chat" size={15} />{selected.balance > 0 ? 'WhatsApp reminder' : 'WhatsApp'}</button>
+              <button className="btn small" onClick={() => setEditing(selected)}><Icon name="edit" size={16} />Edit</button>
               <button className="btn small" onClick={() => toggleActive(selected)}>
                 {selected.isActive ? 'Mark inactive' : 'Mark active'}
               </button>

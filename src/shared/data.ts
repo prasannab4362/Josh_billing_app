@@ -49,6 +49,8 @@ export interface AuditEntry {
   label: string
   before: Record<string, unknown> | null
   after: Record<string, unknown> | null
+  /** Who made the change (when logins are on); '' otherwise. */
+  by: string
 }
 
 export interface AuditFilter {
@@ -66,6 +68,7 @@ export const AUDIT_ENTITIES: { key: string; label: string }[] = [
   { key: 'party', label: 'Parties' },
   { key: 'item', label: 'Items' },
   { key: 'stock_adjustment', label: 'Stock adjustments' },
+  { key: 'user', label: 'Logins and users' },
   { key: 'bank_account', label: 'Cash & bank accounts' },
   { key: 'account_transfer', label: 'Transfers' }
 ]

@@ -17,7 +17,9 @@ import { deleteExpense, listExpenseCategories, listExpenses, saveExpense } from 
 import { createAdjustment, deleteAdjustment, stockSummary } from './services/inventory'
 import { exportPdf, exportReport, printInvoice, printLabels, printReport, saveLabelsPdf } from './print'
 import { ageing, billRegister, dashboard, dayBook, gstSummary, itemSales, profitLoss } from './services/reports'
-import type { BillType } from '@shared/models'
+import type { BillType, PaperSize } from '@shared/models'
+
+const PAPER_SIZES: PaperSize[] = ['A4', 'A5', 'thermal80', 'thermal58']
 import type { InvoicePrintData } from '@shared/invoiceHtml'
 import {
   createItem, deleteItem, generateBarcode, getItem, getItemImage, listItemCategories, listItems, setItemActive, updateItem
@@ -43,8 +45,16 @@ import { copyPoster, htmlToPdf, keepForSharing, openSafe, savePdfAs, savePoster 
 import { catalogueHtml, whatsappLink, type CatalogueItem } from '@shared/share'
 import { invoiceHtml } from '@shared/invoiceHtml'
 import { labelPrice } from './services/labels'
-import { readFileSync } from 'node:fs'
-import { basename } from 'node:path'
+import { readFileSync, statSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
+import { check, NOT_OWNER } from './access'
+import { isTrustedSender } from './security'
+import { logError } from './log'
+import {
+  changeMyPassword, createUser, getIdleMinutes, listUsers, login, loginRequired, recoverOwner, renewRecoveryCode, setIdleMinutes,
+  setupOwner, turnOffLogins, updateUser
+} from './services/users'
+import type { Business } from '@shared/models'
 
 /** Take today's automatic backup in the background; a failure must never stop the app. */
 export function autoBackupLater(session: Session): void {
@@ -64,8 +74,27 @@ async function askXlsxPath(name: string): Promise<string | null> {
   return r.canceled || !r.filePath ? null : r.filePath
 }
 
+/** The business with only its id and name, for screens shown before sign-in. */
+const nameOnly = (b: Business): Business => ({
+  ...b, legalName: '', gstin: '', pan: '', address: '', city: '', pincode: '', phone: '', email: '', businessType: '', category: '', logo: '', signature: ''
+})
+
 export function createHandlers(session: Session): BillingApi {
   const db = () => session.requireDb()
+  const locked = () => session.isOpen && loginRequired(db()) && !session.user
+  const owner = () => {
+    const u = session.user
+    if (!u || u.role !== 'owner') throw new UserError(NOT_OWNER)
+    return u
+  }
+  // Backup files the screen may name: only ones the owner picked in a file window, or the app's own backups.
+  // Restore and import must never be pointed at any other file on the computer.
+  const approvedBackups = new Set<string>()
+  const approve = (p: string) => approvedBackups.add(resolve(p).toLowerCase())
+  const approved = (p: unknown): string => {
+    if (typeof p !== 'string' || !approvedBackups.has(resolve(p).toLowerCase())) throw new UserError('Choose the backup file again')
+    return p
+  }
   // The party's own field values; none when the party has since been deleted.
   const partyFieldsOf = (id: string | null): string[] | null => {
     if (!id) return null
@@ -92,8 +121,9 @@ export function createHandlers(session: Session): BillingApi {
       }]
     })
   }
-  const printData = (type: BillType, id: string): InvoicePrintData => {
+  const printData = (type: BillType, id: string, paper?: PaperSize | null): InvoicePrintData => {
     const prefs = getPreferences(db())
+    if (paper && !PAPER_SIZES.includes(paper)) throw new UserError('Unknown paper size')
     const invoice = getBill(db(), type, id)
     return {
       type,
@@ -101,7 +131,7 @@ export function createHandlers(session: Session): BillingApi {
       partyCustomFields: partyFieldsOf(invoice.partyId),
       business: getBusiness(db()),
       bank: printAccount(db()),
-      paper: prefs.paperSize,
+      paper: paper || prefs.paperSize,
       gstRegistered: prefs.gstRegistered,
       design: getPrintSettings(db()),
       itemFields: getItemFields(db()),
@@ -118,6 +148,49 @@ export function createHandlers(session: Session): BillingApi {
 
     listBusinesses: async () => session.registry.list(),
     currentBusiness: async () => session.current(),
+
+    authStatus: async () => {
+      const b = session.current()
+      const required = !!b && loginRequired(db())
+      return { business: b ? { id: b.id, name: b.name } : null, required, user: required ? session.user : null, idleMinutes: b ? getIdleMinutes(db()) : 0 }
+    },
+    login: async (username, password) => {
+      if (!session.isOpen) throw new UserError('Open a business first')
+      const user = login(db(), username, password)
+      session.setUser(user)
+      return user
+    },
+    logout: async () => session.setUser(null),
+    setupOwner: async (input) => {
+      // Switching logins on is allowed only while they are off (then everyone is effectively the owner).
+      const r = setupOwner(db(), input)
+      session.setUser(r.user)
+      return r
+    },
+    recoverOwner: async (code, username, password) => recoverOwner(db(), code, username, password),
+    listUsers: async () => (owner(), listUsers(db())),
+    createUser: async (input) => {
+      owner()
+      if (!loginRequired(db())) throw new UserError('Switch logins on first')
+      return createUser(db(), input)
+    },
+    updateUser: async (id, update) => {
+      const me = owner()
+      const u = updateUser(db(), id, update)
+      if (id === me.id) session.setUser(u.isActive ? { id: u.id, name: u.name, username: u.username, role: u.role } : null)
+      return u
+    },
+    changeMyPassword: async (current, next) => {
+      const me = session.user
+      if (!me) throw new UserError('Please sign in')
+      changeMyPassword(db(), me, current, next)
+    },
+    renewRecoveryCode: async () => (owner(), renewRecoveryCode(db())),
+    setIdleMinutes: async (minutes) => (owner(), setIdleMinutes(db(), minutes)),
+    turnOffLogins: async (password) => {
+      turnOffLogins(db(), owner(), password)
+      session.setUser(null)
+    },
     createBusiness: async (input) => {
       const b = session.create(input)
       autoBackupLater(session)
@@ -126,7 +199,7 @@ export function createHandlers(session: Session): BillingApi {
     openBusiness: async (id) => {
       const b = session.open(id)
       autoBackupLater(session)
-      return b
+      return locked() ? nameOnly(b) : b
     },
     closeBusiness: async () => session.close(),
     updateBusiness: async (profile) => {
@@ -218,6 +291,7 @@ export function createHandlers(session: Session): BillingApi {
       const parent = parentWindow()
       const r = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
       if (r.canceled || !r.filePaths[0]) return null
+      if (statSync(r.filePaths[0]).size > 20 * 1024 * 1024) throw new UserError('That file is too large (over 20 MB). Split it into smaller files.')
       let rows
       try {
         rows = readSpreadsheet(r.filePaths[0], readFileSync(r.filePaths[0]))
@@ -241,9 +315,9 @@ export function createHandlers(session: Session): BillingApi {
     nextBillNumber: async (type, date) => nextBillNumber(db(), type, date),
     saveBill: async (type, id, input) => saveBill(db(), type, id, input),
     deleteBill: async (type, id) => deleteBill(db(), type, id),
-    getBillPrint: async (type, id) => printData(type, id),
-    exportBillPdf: async (type, id) => exportPdf(printData(type, id)),
-    printBill: async (type, id) => printInvoice(printData(type, id)),
+    getBillPrint: async (type, id, paper) => printData(type, id, paper),
+    exportBillPdf: async (type, id, paper) => exportPdf(printData(type, id, paper)),
+    printBill: async (type, id, paper) => printInvoice(printData(type, id, paper)),
 
     createAdjustment: async (input) => createAdjustment(db(), input),
     deleteAdjustment: async (id) => deleteAdjustment(db(), id),
@@ -279,17 +353,22 @@ export function createHandlers(session: Session): BillingApi {
       if (r.canceled || !r.filePath) return null
       return session.backupTo(r.filePath)
     },
-    listBackups: async () => session.listBackups(),
+    listBackups: async () => {
+      const list = session.listBackups()
+      for (const f of list) approve(f.path)
+      return list
+    },
     chooseBackupFile: async () => {
       const options = { title: 'Choose a backup', properties: ['openFile' as const], filters: BACKUP_FILTER }
       const parent = parentWindow()
       const r = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
       if (r.canceled || !r.filePaths[0]) return null
+      approve(r.filePaths[0])
       return session.inspectBackup(r.filePaths[0])
     },
-    inspectBackup: async (path) => session.inspectBackup(path),
-    restoreBackup: async (path) => session.restore(path),
-    importBackup: async (path) => session.importBackup(path),
+    inspectBackup: async (path) => session.inspectBackup(approved(path)),
+    restoreBackup: async (path) => session.restore(approved(path)),
+    importBackup: async (path) => session.importBackup(approved(path)),
     openBackupFolder: async () => {
       const dir = session.backupDir()
       mkdirSync(dir, { recursive: true })
@@ -328,13 +407,17 @@ export function createHandlers(session: Session): BillingApi {
 export function registerIpc(session: Session): void {
   const handlers = createHandlers(session)
   for (const [channel, fn] of Object.entries(handlers) as [string, (...args: unknown[]) => Promise<unknown>][]) {
-    ipcMain.handle(channel, async (_event, ...args) => {
+    ipcMain.handle(channel, async (event, ...args) => {
+      // Only the app's own window may call in; hidden print windows and the invoice preview cannot.
+      if (!isTrustedSender(event)) throw new Error('Not allowed')
       try {
+        check(session, channel, args)
         return await fn(...args)
       } catch (err) {
         if (err instanceof UserError) throw err
-        console.error(`[ipc:${channel}]`, err)
-        throw new Error(`Something went wrong: ${(err as Error).message}`)
+        // Details (file paths, database messages) go to the local log, not to the screen.
+        const ref = logError(channel, err)
+        throw new Error(`Something went wrong. Please try again; if it keeps happening, restart the app. (ref ${ref})`)
       }
     })
   }

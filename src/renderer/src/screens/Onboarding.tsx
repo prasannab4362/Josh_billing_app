@@ -7,6 +7,7 @@ import { hasErrors, normalizeBusiness, validateBankAccount, validateBusiness, ty
 import { api, errorMessage } from '../api'
 import { BusinessForm, EMPTY_PROFILE } from '../components/BusinessForm'
 import { Banner, Field, TextInput, Toggle } from '../components/Field'
+import { Icon } from '../components/Icon'
 
 const STEPS = ['Business details', 'Preferences', 'Bank & UPI']
 
@@ -90,7 +91,7 @@ export function Onboarding({ onDone, onCancel }: Props) {
         <ol className="steps">
           {STEPS.map((s, i) => (
             <li key={s} className={i === step ? 'current' : i < step ? 'done' : ''}>
-              <span>{i + 1}</span> {s}
+              <span>{i < step ? <Icon name="check" size={14} strokeWidth={2.6} /> : i + 1}</span> {s}
             </li>
           ))}
         </ol>
@@ -174,17 +175,17 @@ export function Onboarding({ onDone, onCancel }: Props) {
           )}
           {step > 0 && (
             <button className="btn" onClick={() => setStep((s) => s - 1)} disabled={saving}>
-              ← Back
+              <Icon name="arrowLeft" size={17} />Back
             </button>
           )}
           <span className="spacer" />
           {step < STEPS.length - 1 ? (
             <button className="btn primary" onClick={next}>
-              Continue →
+              Continue<Icon name="arrowRight" size={17} />
             </button>
           ) : (
             <button className="btn primary" onClick={finish} disabled={saving}>
-              {saving ? 'Creating…' : 'Create business'}
+              {saving ? 'Creating…' : <><Icon name="check" size={17} />Create business</>}
             </button>
           )}
         </div>

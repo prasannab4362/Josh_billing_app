@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Business, BusinessSummary } from '@shared/models'
 import { api, errorMessage } from '../api'
 import { Banner } from '../components/Field'
+import { Icon } from '../components/Icon'
 
 interface Props {
   businesses: BusinessSummary[]
@@ -44,8 +45,9 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
   return (
     <div className="center-page">
       <div className="welcome">
-        <h1>Billing App</h1>
-        <p className="muted">GST billing, stock and accounts — works fully offline.</p>
+        <div className="welcome-mark"><span className="brand-mark">J</span></div>
+        <h1>Josh Billing</h1>
+        <p className="muted">GST billing, stock and accounts — works fully offline, your data stays on this computer.</p>
         {error && <Banner kind="error">{error}</Banner>}
 
         {businesses.length > 0 && (
@@ -62,7 +64,7 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
                         {b.lastOpenedAt ? `Last opened ${new Date(b.lastOpenedAt).toLocaleDateString('en-IN')}` : 'Never opened'}
                       </small>
                     </span>
-                    <span className="muted">{busy === b.id ? 'Opening…' : 'Open →'}</span>
+                    <span className="muted">{busy === b.id ? 'Opening…' : <Icon name="arrowRight" size={18} />}</span>
                   </button>
                 </li>
               ))}
@@ -71,10 +73,10 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
         )}
 
         <button className="btn primary big" onClick={onCreate}>
-          + Create a new business
+          <Icon name="plus" size={19} />Create a new business
         </button>
         <button className="btn big" style={{ marginTop: 8 }} onClick={openBackup} disabled={busy !== null}>
-          {busy === 'backup' ? 'Opening backup…' : 'Open a backup file…'}
+          {busy === 'backup' ? 'Opening backup…' : <><Icon name="folder" size={19} />Open a backup file…</>}
         </button>
         <p className="muted small-note">Moving to a new computer? Open a backup saved from Settings › Backup &amp; restore.</p>
       </div>

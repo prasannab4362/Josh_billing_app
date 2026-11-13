@@ -14,20 +14,20 @@ if (!biz) process.exit(1)
 
 for (const [nav, needle] of [
   ['Dashboard', 'To receive'],
-  ['Parties', '+ Add party'],
+  ['Parties', 'Add party'],
   ['Items', 'Bulk update'],
-  ['Sale', '+ New invoice'],
+  ['Sale', 'New invoice'],
   ['Purchase', 'Purchase'],
   ['Reports', 'Reports'],
   ['Grow', 'Grow your business'],
   ['Settings', 'Extra fields']
 ]) {
-  await click(nav)
+  await click(nav, '.sidebar')
   await waitFor(needle)
   check(true, `${nav} opens`)
 }
 for (const tab of ['Print', 'Transactions', 'Extra fields']) {
-  await click(tab, 'nav.tabs')
+  await click(tab, 'nav.report-nav')
   await sleep(500)
   check((await text()).length > 200, `Settings › ${tab} shows`)
 }

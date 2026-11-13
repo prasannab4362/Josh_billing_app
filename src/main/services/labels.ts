@@ -11,6 +11,8 @@ import { nowIso, UserError } from '../util'
 import { audit } from './audit'
 import { getBusiness } from './business'
 import { getPreferences } from './settings'
+import { getFeatures } from './printDesign'
+import type { CustomField } from '@shared/features'
 
 import type { LabelRequest } from '@shared/ipc'
 
@@ -95,22 +97,34 @@ export function checkLabelOptions(o: LabelOptions): void {
   }
 }
 
+/** The item's own field values with their names, by position; null where the field is switched off. */
+export function ownValues(fields: CustomField[], extra: string | null): ({ label: string; value: string } | null)[] {
+  let values: string[] = []
+  try {
+    values = extra ? (JSON.parse(extra) as string[]) : []
+  } catch {
+    values = []
+  }
+  return fields.map((f, i) => (f.on ? { label: f.label, value: String(values[i] ?? '') } : null))
+}
+
 export function labelData(db: DB, req: LabelRequest): LabelData[] {
   checkLabelOptions(req.options)
   const registered = getPreferences(db).gstRegistered
   const get = db.prepare(
-    `SELECT i.name, i.barcode, i.code, i.hsn_sac, i.description, c.name AS category, i.sale_price, i.price_includes_tax, i.mrp,
+    `SELECT i.name, i.barcode, i.code, i.hsn_sac, i.description, i.extra, c.name AS category, i.sale_price, i.price_includes_tax, i.mrp,
             COALESCE(t.rate_bp, 0) AS rate_bp, COALESCE(t.cess_bp, 0) AS cess_bp
      FROM item i LEFT JOIN tax_rate t ON t.id = i.tax_rate_id LEFT JOIN item_category c ON c.id = i.category_id
      WHERE i.id = ? AND i.deleted_at IS NULL`
   )
+  const ownFields = getFeatures(db).itemFields
   const out: LabelData[] = []
   for (const r of req.items) {
     if (!Number.isInteger(r.copies) || r.copies < 0) throw new UserError('Number of labels must be a whole number')
     if (r.copies === 0) continue
     const i = get.get(r.itemId) as
       | {
-          name: string; barcode: string | null; code: string | null; hsn_sac: string | null; description: string | null; category: string | null
+          name: string; barcode: string | null; code: string | null; hsn_sac: string | null; description: string | null; extra: string | null; category: string | null
           sale_price: number; price_includes_tax: number; mrp: number | null; rate_bp: number; cess_bp: number
         }
       | undefined
@@ -127,7 +141,8 @@ export function labelData(db: DB, req: LabelRequest): LabelData[] {
       hsn: i.hsn_sac ?? '',
       description: i.description ?? '',
       price: labelPrice(i.sale_price, i.price_includes_tax === 1, i.rate_bp, i.cess_bp, registered),
-      mrp: i.mrp
+      mrp: i.mrp,
+      own: ownFields.some((f) => f.on) ? ownValues(ownFields, i.extra) : undefined
     }
     for (let n = 0; n < r.copies; n++) out.push(label)
     if (out.length > MAX_LABELS) throw new UserError(`At most ${MAX_LABELS} labels at a time`)
