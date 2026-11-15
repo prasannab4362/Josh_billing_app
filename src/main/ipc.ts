@@ -5,7 +5,7 @@ import type { BillingApi } from '@shared/ipc'
 import { schemaVersion } from './db/connection'
 import type { Session } from './session'
 import { getBusiness, setBusinessImage, updateBusiness } from './services/business'
-import { assignBarcodes, deleteLabelSize, getLabelDesign, labelPage, listLabelSizes, saveLabelDesign, saveLabelSize } from './services/labels'
+import { assignBarcodes, deleteLabelSize, getCodeFormat, getLabelDesign, saveCodeFormat, labelPage, listLabelSizes, saveLabelDesign, saveLabelSize } from './services/labels'
 import {
   createAccount, createTransfer, deactivateAccount, deleteTransfer, listAccounts, listAccountsWithBalance, printAccount,
   updateAccount
@@ -22,7 +22,7 @@ import type { BillType, PaperSize } from '@shared/models'
 const PAPER_SIZES: PaperSize[] = ['A4', 'A5', 'thermal80', 'thermal58']
 import type { InvoicePrintData } from '@shared/invoiceHtml'
 import {
-  createItem, deleteItem, generateBarcode, getItem, getItemImage, listItemCategories, listItems, setItemActive, updateItem
+  addItemSizes, createItem, deleteItem, generateBarcode, getItem, getItemImage, listItemCategories, listItems, setItemActive, updateItem
 } from './services/items'
 import { listSeries, updateSeries } from './services/numberSeries'
 import {
@@ -238,6 +238,7 @@ export function createHandlers(session: Session): BillingApi {
     listItems: async () => listItems(db()),
     getItem: async (id) => getItem(db(), id),
     createItem: async (input) => createItem(db(), input),
+    addItemSizes: async (itemId, sizes) => addItemSizes(db(), itemId, sizes),
     updateItem: async (id, input) => updateItem(db(), id, input),
     setItemActive: async (id, active) => setItemActive(db(), id, active),
     deleteItem: async (id) => deleteItem(db(), id),
@@ -306,6 +307,8 @@ export function createHandlers(session: Session): BillingApi {
     saveLabelSize: async (id, name, size) => saveLabelSize(db(), id, name, size),
     deleteLabelSize: async (id) => deleteLabelSize(db(), id),
     getLabelDesign: async () => getLabelDesign(db()),
+    getCodeFormat: async () => getCodeFormat(db()),
+    saveCodeFormat: async (f) => saveCodeFormat(db(), f),
     saveLabelDesign: async (d) => saveLabelDesign(db(), d),
 
     listAccounts: async () => listAccounts(db()),

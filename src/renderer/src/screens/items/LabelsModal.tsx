@@ -1,14 +1,156 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { LabelRequest } from '@shared/ipc'
 import {
-  DEFAULT_LABEL_OPTIONS, EXTRA_TITLES, extraFieldsUsed, LABEL_FIELDS, LABEL_LAYOUTS, MAX_LABEL_LINES, pageWidth, resolveLayout,
-  type LabelExtra, type LabelField, type LabelLayout, type LabelLine, type LabelOptions, type SavedLabelSize
+  DEFAULT_LABEL_OPTIONS, EXTRA_TITLES, extraFieldsUsed, LABEL_FIELDS, LABEL_LAYOUTS, LABEL_STYLES, MAX_LABEL_LINES, pageWidth, resolveLayout,
+  type LabelExtra, type LabelField, type LabelLayout, type LabelLine, type LabelOptions, type LabelStyle, type SavedLabelSize
 } from '@shared/labels'
 import type { Item } from '@shared/models'
 import { formatQty } from '@shared/qty'
 import { api, errorMessage } from '../../api'
 import { Banner, Modal, Toggle } from '../../components/Field'
 import { CustomSizeModal } from './CustomSizeModal'
+import { codeFormatError, codeFormatExample, yearLetters, type CodeFormat, type YearlyFormat } from '@shared/barcode'
+import { fyFor, todayLocal } from '@shared/fy'
+
+/** A tiny drawing of each label design, so the choice is visual. */
+function StyleThumb({ style }: { style: LabelStyle }) {
+  const bars = <i className="t-bars" />
+  const qr = <i className="t-qr" />
+  switch (style) {
+    case 'garment':
+      return <span className="lthumb"><b className="t-band" /><span className="t-row"><span className="t-col"><i className="t-ln" /><b className="t-price" /></span><i className="t-v" />{qr}</span></span>
+    case 'priceTag':
+      return <span className="lthumb center"><i className="t-ln short" /><b className="t-price big" />{bars}</span>
+    case 'shelf':
+      return <span className="lthumb"><span className="t-row"><span className="t-col"><i className="t-ln" />{bars}</span><span className="t-col right"><b className="t-price" /><i className="t-ln short" /><b className="t-save" /></span></span></span>
+    case 'boxed':
+      return <span className="lthumb center boxed"><i className="t-head" />{bars}<i className="t-ln" /></span>
+    case 'jewellery':
+      return <span className="lthumb jewel"><span className="t-row">{qr}<i className="t-tail" /><span className="t-col"><i className="t-ln" /><i className="t-ln short" /></span></span></span>
+    case 'codeOnly':
+      return <span className="lthumb center"><i className="t-bars tall" /><i className="t-ln short" /></span>
+    case 'food':
+      return <span className="lthumb"><i className="t-head line" /><i className="t-ln" /><b className="t-price small" /><span className="t-dates"><i /><i /></span>{bars}</span>
+    default:
+      return <span className="lthumb center"><i className="t-head" />{bars}<i className="t-ln" /><i className="t-ln short" /></span>
+  }
+}
+
+/** How new barcode numbers are made: in-store EAN-13, or the shop's own pattern like 472-00001~1. */
+function CodeFormatRow({ onMessage }: { onMessage: (m: Message) => void }) {
+  const [f, setF] = useState<CodeFormat | null>(null)
+  const [saved, setSaved] = useState('')
+  const [fy, setFy] = useState('')
+  useEffect(() => {
+    api.getCodeFormat().then((x) => {
+      setF(x)
+      setSaved(JSON.stringify(x))
+    }, () => setF({ kind: 'ean13' }))
+    api.currentBusiness().then((b) => setFy(fyFor(todayLocal(), b?.fyStartMonth ?? 4)), () => setFy(fyFor(todayLocal())))
+  }, [])
+  if (!f || !fy) return null
+  const pattern = f.kind === 'pattern' ? f : { kind: 'pattern' as const, prefix: '472-', digits: 5, suffix: '~1' }
+  const yearly: YearlyFormat = f.kind === 'yearly'
+    ? f
+    : { kind: 'yearly', startCode: 'AA', startFy: fy, digits: 5, separator: '-', restartEachYear: false, sizeNumbers: true }
+  const problem = codeFormatError(f)
+  const dirty = JSON.stringify(f) !== saved
+  const example = (x: CodeFormat): string => {
+    try {
+      return codeFormatExample(x, 1, fy)
+    } catch (e) {
+      return (e as Error).message
+    }
+  }
+  const nextYear = `${Number(fy.slice(0, 4)) + 1}${fy.length > 4 ? `-${String((Number(fy.slice(0, 4)) + 2) % 100).padStart(2, '0')}` : ''}`
+  const save = async () => {
+    try {
+      // Year letters chosen now belong to this accounting year.
+      const out = await api.saveCodeFormat(f.kind === 'yearly' ? { ...f, startCode: safeLetters(f, fy), startFy: fy } : f)
+      setF(out)
+      setSaved(JSON.stringify(out))
+      onMessage({ kind: 'success', text: `New barcodes will be numbered like ${example(out)}` })
+    } catch (e) {
+      onMessage({ kind: 'error', text: errorMessage(e) })
+    }
+  }
+  return (
+    <div className="code-format">
+      <div className="labels-option-row">
+        <span className="field-label">New barcode numbers</span>
+        <div className="seg">
+          <button className={f.kind === 'ean13' ? 'on' : ''} onClick={() => setF({ kind: 'ean13' })}>Store barcode (EAN-13)</button>
+          <button className={f.kind === 'yearly' ? 'on' : ''} onClick={() => setF(yearly)}>Year letters</button>
+          <button className={f.kind === 'pattern' ? 'on' : ''} onClick={() => setF(pattern)}>Own pattern</button>
+        </div>
+      </div>
+      {f.kind === 'pattern' && (
+        <div className="labels-option-row">
+          <label className="field"><span className="field-label">Prefix</span><input className="input code-part" value={f.prefix} maxLength={12} onChange={(e) => setF({ ...f, prefix: e.target.value.trim() })} /></label>
+          <label className="field"><span className="field-label">Digits</span>
+            <select className="input code-part" value={f.digits} onChange={(e) => setF({ ...f, digits: Number(e.target.value) })}>
+              {[3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <label className="field"><span className="field-label">Suffix</span><input className="input code-part" value={f.suffix} maxLength={12} onChange={(e) => setF({ ...f, suffix: e.target.value.trim() })} /></label>
+        </div>
+      )}
+      {f.kind === 'yearly' && (
+        <>
+          <div className="labels-option-row">
+            <label className="field">
+              <span className="field-label">Letters for {fy}</span>
+              <input className="input code-part" aria-label="Year letters" value={f.kind === 'yearly' && f.startFy !== fy ? safeLetters(f, fy) : f.startCode} maxLength={2}
+                onChange={(e) => setF({ ...f, startCode: e.target.value.toUpperCase().replace(/[^A-Z]/g, ''), startFy: fy })} />
+            </label>
+            <label className="field"><span className="field-label">Between</span>
+              <select className="input code-part" value={f.separator} onChange={(e) => setF({ ...f, separator: e.target.value })}>
+                {['-', '/', '.', '#', '_', ''].map((s) => <option key={s} value={s}>{s || 'nothing'}</option>)}
+              </select>
+            </label>
+            <label className="field"><span className="field-label">Digits</span>
+              <select className="input code-part" value={f.digits} onChange={(e) => setF({ ...f, digits: Number(e.target.value) })}>
+                {[3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="labels-option-row">
+            <Toggle checked={f.sizeNumbers} onChange={(v) => setF({ ...f, sizeNumbers: v })} label="Size number after ~ (~1, ~2, ~3 for the sizes of one product)" />
+          </div>
+          <div className="labels-option-row">
+            <Toggle checked={f.restartEachYear} onChange={(v) => setF({ ...f, restartEachYear: v })} label="Start the product number again at 1 each year" />
+          </div>
+          {!problem && (
+            <p className="muted small" style={{ margin: 0 }}>
+              This year ({fy}) codes start with {safeLetters(f, fy)}; next year ({nextYear}) with {(() => {
+                try {
+                  return yearLetters(f, nextYear)
+                } catch (e) {
+                  return (e as Error).message
+                }
+              })()}, {f.restartEachYear ? 'numbered again from 1' : 'carrying on the product numbers'}.
+            </p>
+          )}
+        </>
+      )}
+      <div className="labels-option-row">
+        <span className={problem ? 'field-error' : 'muted small'}>
+          {problem || `Example: ${example(f)}${f.kind !== 'ean13' ? ' (prints as a Code 128 barcode or a QR code)' : ''}`}
+        </span>
+        {dirty && <button className="btn small primary" onClick={save} disabled={!!problem}>Save numbering</button>}
+      </div>
+    </div>
+  )
+}
+
+/** The letters this year, for a format started in an earlier year. */
+function safeLetters(f: YearlyFormat, fy: string): string {
+  try {
+    return yearLetters(f, fy)
+  } catch {
+    return f.startCode
+  }
+}
 
 interface Props {
   items: Item[]
@@ -264,6 +406,17 @@ export function LabelsModal({ items, preselect, onClose, onItemsChanged }: Props
           </div>
 
           <div className="labels-options">
+            <div className="section-title">Design</div>
+            <div className="label-styles">
+              {(Object.keys(LABEL_STYLES) as LabelStyle[]).map((s) => (
+                <button key={s} type="button" className={(d.style ?? 'classic') === s ? 'label-style on' : 'label-style'} title={LABEL_STYLES[s].hint}
+                  onClick={() => update({ style: s })}>
+                  <StyleThumb style={s} />
+                  <span>{LABEL_STYLES[s].name}</span>
+                </button>
+              ))}
+            </div>
+            <p className="muted small" style={{ margin: '2px 0 6px' }}>{LABEL_STYLES[d.style ?? 'classic'].hint}</p>
             <div className="labels-option-row">
               <span className="field-label">Printer</span>
               <div className="seg">
@@ -318,6 +471,8 @@ export function LabelsModal({ items, preselect, onClose, onItemsChanged }: Props
               <LineChoice title="Header" line={d.header} onChange={(l) => update({ header: l })} own={own} />
               {d.lines.map((l, i) => <LineChoice key={i} title={`Line ${i + 1}`} line={l} onChange={(x) => setLine(i, x)} own={own} />)}
             </div>
+            <div className="section-title">Barcode numbers</div>
+            <CodeFormatRow onMessage={setMessage} />
             {extraFields.length > 0 && (
               <p className="muted small" style={{ margin: 0 }}>Type the {extraFields.map((f) => EXTRA_TITLES[f].toLowerCase()).join(', ')} for each item in the list above.</p>
             )}

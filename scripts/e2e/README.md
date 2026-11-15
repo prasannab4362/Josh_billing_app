@@ -18,7 +18,9 @@ Electron window over the Chrome DevTools Protocol.
    businesses in the test profile each run; see `docs/business-guides/`.
 5. Shop tour (barcodes, QR, labels, scan billing, bill and invoice for six shops, 69 checks; needs Python with
    `opencv-contrib-python`): `node scripts/e2e/shop-tour.mjs e2e-out`. Screenshots go to `e2e-out/tour`.
-6. Logo and signature (21 checks, after the shop tour): `node scripts/e2e/logo-signature.mjs e2e-out`. Pictures go to
+6. Label designs (38 checks): `node scripts/e2e/label-designs.mjs e2e-out`. Year letters and sizes (16 checks):
+   `node scripts/e2e/year-codes.mjs e2e-out`.
+7. Logo and signature (21 checks, after the shop tour): `node scripts/e2e/logo-signature.mjs e2e-out`. Pictures go to
    `e2e-out/logo`.
 
 Stop the app afterwards by closing its window (or by killing only the `electron` processes you started).

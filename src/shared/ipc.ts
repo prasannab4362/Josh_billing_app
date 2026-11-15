@@ -1,6 +1,7 @@
 // The calls the renderer can make. Each method name is also its IPC channel.
 
 import type { PaperSize } from './models'
+import type { CodeFormat } from './barcode'
 import type { AuthStatus, AuthUser, NewUserInput, UserSummary, UserUpdate } from './auth'
 import type { InvoicePrintData } from './invoiceHtml'
 import type { ReportDoc } from './reportDoc'
@@ -101,6 +102,8 @@ export interface BillingApi {
   getItemImage(id: string): Promise<string | null>
   /** A free in-store barcode number for a new item. */
   generateBarcode(): Promise<string>
+  /** More sizes of a product, each a new item with its own barcode (AA-00012~2, ~3 … with size numbers). */
+  addItemSizes(itemId: string, sizes: { size: string; salePrice?: number | null; mrp?: number | null }[]): Promise<Item[]>
   /** Give barcodes to the listed items that have none; returns how many got one. */
   assignBarcodes(itemIds: string[]): Promise<number>
   /** The label sheet as HTML, for the preview. */
@@ -144,6 +147,9 @@ export interface BillingApi {
   saveLabelSize(id: string | null, name: string, size: CustomSize): Promise<SavedLabelSize>
   deleteLabelSize(id: string): Promise<void>
   getLabelDesign(): Promise<Omit<LabelOptions, 'skip'> | null>
+  /** How new barcode numbers are made (in-store EAN-13 or the shop's own pattern such as 472-00001~1). */
+  getCodeFormat(): Promise<CodeFormat>
+  saveCodeFormat(f: CodeFormat): Promise<CodeFormat>
   saveLabelDesign(design: Omit<LabelOptions, 'skip'>): Promise<void>
 
   listAccounts(): Promise<MoneyAccount[]>
@@ -292,6 +298,7 @@ const methods: Record<keyof BillingApi, true> = {
   listItems: true,
   getItem: true,
   createItem: true,
+  addItemSizes: true,
   updateItem: true,
   setItemActive: true,
   deleteItem: true,
@@ -326,6 +333,8 @@ const methods: Record<keyof BillingApi, true> = {
   saveLabelSize: true,
   deleteLabelSize: true,
   getLabelDesign: true,
+  getCodeFormat: true,
+  saveCodeFormat: true,
   saveLabelDesign: true,
   listAccounts: true,
   listBills: true,

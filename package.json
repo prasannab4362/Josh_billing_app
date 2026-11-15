@@ -1,6 +1,6 @@
 {
   "name": "billing-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Offline-first GST billing, inventory and accounts app",
   "main": "./out/main/index.js",
@@ -16,9 +16,16 @@
     "appId": "com.joshbilling.desktop",
     "productName": "Josh Billing",
     "npmRebuild": false,
-    "directories": { "output": "dist" },
-    "files": ["out/**/*", "package.json"],
-    "asarUnpack": ["node_modules/better-sqlite3/**/*"],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
     "win": {
       "target": "nsis",
       "artifactName": "Josh-Billing-Setup-${version}-${arch}.${ext}",

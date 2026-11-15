@@ -53,9 +53,9 @@ export const PUBLIC_METHODS = [
 /** What staff may call once signed in; everything else is for the owner only. */
 export const STAFF_METHODS = [
   'currentBusiness', 'getPreferences', 'listSeries', 'listTaxRates', 'listUnits', 'listParties', 'getParty', 'listPartyGroups',
-  'createParty', 'updateParty', 'listItems', 'getItem', 'createItem', 'updateItem', 'listItemCategories', 'listStockMovements',
+  'createParty', 'updateParty', 'listItems', 'getItem', 'createItem', 'updateItem', 'addItemSizes', 'listItemCategories', 'listStockMovements',
   'getItemImage', 'generateBarcode', 'assignBarcodes', 'previewLabels', 'printLabels', 'saveLabelsPdf', 'listLabelSizes',
-  'getLabelDesign', 'saveLabelDesign', 'getFeatures', 'getItemFields', 'getPrintSettings', 'listAccounts', 'stockSummary',
+  'getLabelDesign', 'saveLabelDesign', 'getCodeFormat', 'getFeatures', 'getItemFields', 'getPrintSettings', 'listAccounts', 'stockSummary',
   'listBills', 'getBill', 'nextBillNumber', 'saveBill', 'getBillPrint', 'exportBillPdf', 'printBill', 'shareBillOnWhatsApp',
   'openWhatsApp', 'listPayments', 'getPayment', 'nextPaymentNumber', 'openDocuments', 'savePayment', 'partyStatement',
   'catalogueItems', 'saveCatalogue', 'savePoster', 'copyPoster', 'changeMyPassword'

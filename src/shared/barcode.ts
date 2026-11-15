@@ -132,3 +132,135 @@ export function nextStoreEan(used: string[]): string {
   const body = String(max + 1)
   return body + ean13CheckDigit(body)
 }
+
+/**
+ * How new barcode numbers are made: in-store EAN-13 (prefix 2), or the shop's own pattern such as
+ * prefix "472-", 5 digits, suffix "~1" → 472-00001~1, 472-00002~1 (printed as Code 128 or a QR code).
+ */
+export type CodeFormat =
+  | { kind: 'ean13' }
+  | { kind: 'pattern'; prefix: string; digits: number; suffix: string }
+  | {
+      kind: 'yearly'
+      /** Two letters for the first accounting year, e.g. 'AA' (or 'EE' to start there). */
+      startCode: string
+      /** The accounting year that gets startCode, e.g. '2026-27'. Each later year moves one step: AA, AB, AC … ZZ. */
+      startFy: string
+      /** Digits in the running product number (00001). */
+      digits: number
+      /** Between the year letters and the number, e.g. '-' (may be empty). */
+      separator: string
+      /** true: the product number starts again at 1 each year; false: it carries on from last year. */
+      restartEachYear: boolean
+      /** Add a size number after '~' (AA-00001~1, ~2, ~3 …). Sizes of one product share the product number. */
+      sizeNumbers: boolean
+    }
+
+export type YearlyFormat = Extract<CodeFormat, { kind: 'yearly' }>
+
+export const DEFAULT_CODE_FORMAT: CodeFormat = { kind: 'ean13' }
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** A problem with a pattern, or ''. */
+export function codeFormatError(f: CodeFormat): string {
+  if (f?.kind === 'ean13') return ''
+  if (f?.kind === 'yearly') {
+    if (typeof f.startCode !== 'string' || !/^[A-Z]{2}$/.test(f.startCode)) return 'Year letters: two capital letters from AA to ZZ'
+    if (typeof f.startFy !== 'string' || !/^\d{4}(-\d{2})?$/.test(f.startFy)) return 'Choose the accounting year the letters start from'
+    if (!Number.isInteger(f.digits) || f.digits < 3 || f.digits > 8) return 'Use 3 to 8 digits for the product number'
+    if (typeof f.separator !== 'string' || !['', '-', '/', '.', '#', '_'].includes(f.separator)) return 'Between letters and number: nothing, or one of - / . # _'
+    return ''
+  }
+  if (f?.kind !== 'pattern') return 'Choose how barcode numbers are made'
+  if (!Number.isInteger(f.digits) || f.digits < 3 || f.digits > 10) return 'Use 3 to 10 digits for the running number'
+  for (const part of [f.prefix, f.suffix]) {
+    if (typeof part !== 'string' || !/^[\x21-\x7E]{0,12}$/.test(part)) return 'Prefix and suffix: up to 12 English letters, digits or symbols, no spaces'
+  }
+  if (!f.prefix && !f.suffix) return 'Give the pattern a prefix or a suffix, so its numbers cannot be mistaken for others'
+  return ''
+}
+
+/** Year letters for an accounting year: startCode in startFy, one step on for each year after (AA, AB … AZ, BA … ZZ). */
+export function yearLetters(f: Pick<YearlyFormat, 'startCode' | 'startFy'>, fy: string): string {
+  const start = LETTERS.indexOf(f.startCode[0]!) * 26 + LETTERS.indexOf(f.startCode[1]!)
+  const step = Math.max(0, Number(fy.slice(0, 4)) - Number(f.startFy.slice(0, 4)))
+  const n = start + step
+  if (n > 675) throw new RangeError('The year letters have gone past ZZ; choose new starting letters')
+  return LETTERS[Math.floor(n / 26)]! + LETTERS[n % 26]!
+}
+
+function yearlyCode(f: YearlyFormat, fy: string, n: number, size = 1): string {
+  return `${yearLetters(f, fy)}${f.separator}${String(n).padStart(f.digits, '0')}${f.sizeNumbers ? `~${size}` : ''}`
+}
+
+/** The pattern written as an example, e.g. "472-00001~1" or "AA-00001~1". fy is needed for year letters. */
+export function codeFormatExample(f: CodeFormat, n = 1, fy?: string): string {
+  if (f.kind === 'ean13') return nextStoreEan([])
+  if (f.kind === 'yearly') return yearlyCode(f, fy ?? f.startFy, n)
+  return `${f.prefix}${String(n).padStart(f.digits, '0')}${f.suffix}`
+}
+
+/** Next unused number of the pattern after the highest one already used. */
+export function nextPatternCode(used: string[], f: Extract<CodeFormat, { kind: 'pattern' }>): string {
+  const re = new RegExp(`^${esc(f.prefix)}(\\d{${f.digits}})${esc(f.suffix)}$`)
+  let max = 0
+  for (const u of used) {
+    const m = re.exec(u)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  const next = max + 1
+  if (String(next).length > f.digits) throw new RangeError(`All ${f.digits}-digit numbers of this pattern are used; add a digit`)
+  return codeFormatExample(f, next)
+}
+
+/**
+ * Next product number with year letters. Restarting each year counts only this year's codes; carrying on counts
+ * every year's codes of the format (any two letters). Size numbers (~1, ~2) do not make new product numbers.
+ */
+export function nextYearlyCode(used: string[], f: YearlyFormat, fy: string): string {
+  const letters = f.restartEachYear ? yearLetters(f, fy) : '[A-Z]{2}'
+  const re = new RegExp(`^${letters}${esc(f.separator)}(\\d{${f.digits}})(?:~\\d{1,3})?$`)
+  let max = 0
+  for (const u of used) {
+    const m = re.exec(u)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  const next = max + 1
+  if (String(next).length > f.digits) throw new RangeError(`All ${f.digits}-digit product numbers are used; add a digit`)
+  return yearlyCode(f, fy, next)
+}
+
+/** The next barcode number for the chosen way of making them. fy (e.g. '2026-27') is today's accounting year. */
+export function nextCode(used: string[], f: CodeFormat, fy = ''): string {
+  if (f.kind === 'pattern') return nextPatternCode(used, f)
+  if (f.kind === 'yearly') return nextYearlyCode(used, f, fy || f.startFy)
+  return nextStoreEan(used)
+}
+
+/** 'AA-00012~3' -> { stem: 'AA-00012', size: 3 }; a code without '~n' has size null. */
+export function splitSizeCode(code: string): { stem: string; size: number | null } {
+  const m = /^(.+)~(\d{1,3})$/.exec(code)
+  return m ? { stem: m[1]!, size: Number(m[2]) } : { stem: code, size: null }
+}
+
+/**
+ * Codes for more sizes of a product: the same product number with the next free size numbers
+ * (AA-00012~1 -> AA-00012~2, ~3 …). Returns null when the code has no size number (then each size gets a new code).
+ */
+export function nextSizeCodes(code: string, used: string[], count: number): string[] | null {
+  const { stem, size } = splitSizeCode(code)
+  if (size === null) return null
+  const taken = new Set(used)
+  const out: string[] = []
+  for (let k = 1; out.length < count; k++) {
+    if (k > 999) throw new RangeError('This product has too many sizes')
+    const c = `${stem}~${k}`
+    if (!taken.has(c)) {
+      out.push(c)
+      taken.add(c)
+    }
+  }
+  return out
+}

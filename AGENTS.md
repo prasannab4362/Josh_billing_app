@@ -99,7 +99,7 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 260 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 276 tests at the time of writing. Add tests for every rule you add, including the refusals.
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
 - `scripts/e2e/business-check.mjs` sets up one test business per trade and checks its everyday bills (totals, GST
   split, stock, payments, PDF). Run it after changes to billing, tax, units, stock or printing, and update the
@@ -107,6 +107,12 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - `scripts/e2e/shop-tour.mjs` checks barcodes, QR codes and labels for six shops (reads every printed code back with
   OpenCV via `scripts/e2e/read-codes.py`), bills by scanning, and prints each bill as a receipt and as an A4 invoice.
   Run it after changes to labels, barcodes, scanning or printing, and refresh `docs/setup-guide/images` from its output.
+- `scripts/e2e/label-designs.mjs` prints all 8 label designs (`LABEL_STYLES` in `shared/labels.ts`) with a barcode and a
+  QR code for items numbered with an own pattern (472-00001~1, `CodeFormat` in `shared/barcode.ts`), reads every printed
+  code back (Code 128 with the bar reader in `read-codes.py`), and bills by scanning. Run it after label changes.
+- `scripts/e2e/year-codes.mjs` checks year-letter numbering with sizes (`EE-00001~1`, `~2`…; `CodeFormat` kind `yearly`):
+  sets it in the labels window, uses **Add sizes** (`addItemSizes` in `services/items.ts`), prints and reads back the tags,
+  and bills by scanning. Year letters move with the accounting year (`currentFy` in `services/labels.ts`).
 - `scripts/e2e/logo-signature.mjs` uploads a logo and a signature photo through the real Settings › Business boxes and
   checks both print on A4, A5, 80 mm and 58 mm (run shop-tour.mjs first; it uses that clothing shop).
 - Barcodes/QR were verified by reading rendered labels with OpenCV; the QR encoder was checked for all 40 versions

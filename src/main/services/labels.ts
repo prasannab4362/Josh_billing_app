@@ -1,8 +1,9 @@
 // Barcode labels: what goes on each label, and giving barcodes to items that have none.
-import { nextStoreEan } from '@shared/barcode'
+import { codeFormatError, DEFAULT_CODE_FORMAT, nextCode, type CodeFormat } from '@shared/barcode'
+import { fyFor, todayLocal } from '@shared/fy'
 import { randomUUID } from 'node:crypto'
 import {
-  customSizeError, EXTRA_FIELDS, LABEL_FIELDS, labelsHtml, LABEL_LAYOUTS, MAX_LABEL_LINES,
+  customSizeError, EXTRA_FIELDS, LABEL_FIELDS, LABEL_STYLES, labelsHtml, LABEL_LAYOUTS, MAX_LABEL_LINES,
   type CustomSize, type LabelData, type LabelExtra, type LabelOptions, type SavedLabelSize
 } from '@shared/labels'
 import { applyRate } from '@shared/money'
@@ -84,6 +85,7 @@ export function saveLabelDesign(db: DB, design: Omit<LabelOptions, 'skip'>): voi
 /** Refuse options the page cannot be drawn from. */
 export function checkLabelOptions(o: LabelOptions): void {
   if (!LABEL_LAYOUTS[o.layout]) throw new UserError('Choose a label size')
+  if (o.style !== undefined && !(o.style in LABEL_STYLES)) throw new UserError('Choose a label design')
   if (o.layout === 'roll-custom') {
     const err = customSizeError(o.custom)
     if (err) throw new UserError(err)
@@ -157,13 +159,20 @@ export function labelPage(db: DB, req: LabelRequest): string {
 
 /** Give each listed item without a barcode a new in-store EAN-13. Returns how many were given one. */
 export function assignBarcodes(db: DB, itemIds: string[]): number {
+  const format = getCodeFormat(db)
+  const fy = currentFy(db)
   let given = 0
   db.transaction(() => {
     const used = (db.prepare(`SELECT barcode FROM item WHERE barcode IS NOT NULL`).all() as { barcode: string }[]).map((r) => r.barcode)
     for (const id of itemIds) {
       const row = db.prepare('SELECT barcode FROM item WHERE id = ? AND deleted_at IS NULL').get(id) as { barcode: string | null } | undefined
       if (!row || row.barcode) continue
-      const code = nextStoreEan(used)
+      let code: string
+      try {
+        code = nextCode(used, format, fy)
+      } catch (e) {
+        throw new UserError((e as Error).message)
+      }
       used.push(code)
       db.prepare('UPDATE item SET barcode = ?, updated_at = ? WHERE id = ?').run(code, nowIso(), id)
       audit(db, 'item', id, 'update', { barcode: null }, { barcode: code })
@@ -171,4 +180,39 @@ export function assignBarcodes(db: DB, itemIds: string[]): number {
     }
   })()
   return given
+}
+
+// ---------- How new barcode numbers are made ----------
+
+const CODE_FORMAT_KEY = 'labels.codeFormat'
+
+export function getCodeFormat(db: DB): CodeFormat {
+  const f = readSetting<CodeFormat | null>(db, CODE_FORMAT_KEY, null)
+  return f && !codeFormatError(f) ? f : DEFAULT_CODE_FORMAT
+}
+
+/** Today's accounting year of the business, e.g. '2026-27' (year letters move on with it). */
+export function currentFy(db: DB): string {
+  return fyFor(todayLocal(), getBusiness(db).fyStartMonth)
+}
+
+export function saveCodeFormat(db: DB, f: CodeFormat): CodeFormat {
+  let clean: CodeFormat
+  if (f?.kind === 'pattern') clean = { kind: 'pattern', prefix: String(f.prefix ?? ''), digits: Number(f.digits), suffix: String(f.suffix ?? '') }
+  else if (f?.kind === 'yearly') {
+    clean = {
+      kind: 'yearly',
+      startCode: String(f.startCode ?? '').trim().toUpperCase(),
+      // The starting letters belong to the year they were chosen in, unless one is given.
+      startFy: String(f.startFy || currentFy(db)),
+      digits: Number(f.digits),
+      separator: String(f.separator ?? ''),
+      restartEachYear: !!f.restartEachYear,
+      sizeNumbers: !!f.sizeNumbers
+    }
+  } else clean = { kind: 'ean13' }
+  const err = codeFormatError(clean)
+  if (err) throw new UserError(err)
+  writeSetting(db, CODE_FORMAT_KEY, clean)
+  return clean
 }

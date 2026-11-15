@@ -9,3 +9,4 @@ dist/
 *.log
 e2e-out/
 e2e-profile/
+__pycache__/

@@ -5,7 +5,9 @@ import type { DB } from '../db/connection'
 import { nowIso, toBool, toInt, UserError, uuid } from '../util'
 import { audit } from './audit'
 import { addMovement, rebuildItemStock, removeMovements } from './stock'
-import { nextStoreEan } from '@shared/barcode'
+import { nextCode, nextSizeCodes } from '@shared/barcode'
+import { getFeatures } from './printDesign'
+import { currentFy, getCodeFormat } from './labels'
 
 const IMAGE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/
 /** Images are kept inside the business file (so backups carry them); keep them small. */
@@ -186,9 +188,14 @@ export function getItemImage(db: DB, id: string): string | null {
 }
 
 /** A new in-store barcode (EAN-13 starting with 2) not used by any item. */
+/** A new barcode number not used by any item, made the business's chosen way (in-store EAN-13 or its own pattern). */
 export function generateBarcode(db: DB): string {
-  const used = (db.prepare(`SELECT barcode FROM item WHERE barcode LIKE '2%'`).all() as { barcode: string }[]).map((r) => r.barcode)
-  return nextStoreEan(used)
+  const used = (db.prepare(`SELECT barcode FROM item WHERE barcode IS NOT NULL`).all() as { barcode: string }[]).map((r) => r.barcode)
+  try {
+    return nextCode(used, getCodeFormat(db), currentFy(db))
+  } catch (e) {
+    throw new UserError((e as Error).message)
+  }
 }
 
 export function listItemCategories(db: DB): string[] {
@@ -250,4 +257,84 @@ export function deleteItem(db: DB, id: string): void {
     db.prepare('DELETE FROM item_stock WHERE item_id = ?').run(id)
     audit(db, 'item', id, 'delete', before, null)
   })()
+}
+
+export interface SizeRequest {
+  size: string
+  /** Leave out to copy the product's prices. */
+  salePrice?: number | null
+  mrp?: number | null
+}
+
+/** Position of the business's own item field called "Size", or -1. */
+export function sizeFieldIndex(db: DB): number {
+  return getFeatures(db).itemFields.findIndex((f) => f.on && /^size$/i.test(f.label.trim()))
+}
+
+/**
+ * More sizes of a product, each its own item with its own barcode. With size numbers (AA-00012~1) the sizes share the
+ * product number: ~2, ~3 …; otherwise each size gets the next new code. Everything else is copied from the product;
+ * stock starts at nil. One colour or many: a size is one item, so every colour of it scans as the same barcode.
+ */
+export function addItemSizes(db: DB, itemId: string, sizes: SizeRequest[]): Item[] {
+  const base = getItem(db, itemId)
+  const list = (Array.isArray(sizes) ? sizes : []).map((s) => ({ ...s, size: String(s?.size ?? '').trim() })).filter((s) => s.size)
+  if (!list.length) throw new UserError('Type at least one size')
+  if (list.length > 30) throw new UserError('Add up to 30 sizes at a time')
+  const sizeAt = sizeFieldIndex(db)
+  const seen = new Set<string>()
+  for (const s of list) {
+    if (s.size.length > 20) throw new UserError(`Size "${s.size}" is too long; use up to 20 letters`)
+    if (seen.has(s.size.toLowerCase())) throw new UserError(`Size ${s.size} is listed twice`)
+    seen.add(s.size.toLowerCase())
+    if (sizeAt >= 0 && (base.customFields?.[sizeAt] ?? '').toLowerCase() === s.size.toLowerCase()) {
+      throw new UserError(`${base.name} is already size ${base.customFields?.[sizeAt]}`)
+    }
+  }
+  const made: Item[] = []
+  db.transaction(() => {
+    const used = (db.prepare(`SELECT barcode FROM item WHERE barcode IS NOT NULL`).all() as { barcode: string }[]).map((r) => r.barcode)
+    let baseCode = base.barcode
+    if (!baseCode) {
+      baseCode = generateBarcode(db)
+      db.prepare('UPDATE item SET barcode = ?, updated_at = ? WHERE id = ?').run(baseCode, nowIso(), base.id)
+      audit(db, 'item', base.id, 'update', { barcode: null }, { barcode: baseCode })
+      used.push(baseCode)
+    }
+    let codes: string[]
+    try {
+      codes = nextSizeCodes(baseCode, used, list.length) ?? []
+      if (!codes.length) {
+        const format = getCodeFormat(db)
+        const fy = currentFy(db)
+        for (let k = 0; k < list.length; k++) {
+          const c = nextCode(used, format, fy)
+          used.push(c)
+          codes.push(c)
+        }
+      }
+    } catch (e) {
+      throw new UserError((e as Error).message)
+    }
+    // "Cotton Kurti (L)" -> "Cotton Kurti"; the size is added back for each new item.
+    const ownSize = sizeAt >= 0 ? base.customFields?.[sizeAt] ?? '' : ''
+    const stemName = ownSize && base.name.endsWith(` (${ownSize})`) ? base.name.slice(0, -ownSize.length - 3) : base.name
+    list.forEach((s, k) => {
+      const own = base.customFields ? [...base.customFields] : []
+      if (sizeAt >= 0) {
+        while (own.length <= sizeAt) own.push('')
+        own[sizeAt] = s.size
+      }
+      made.push(createItem(db, {
+        name: `${stemName} (${s.size})`, code: '', kind: base.kind, category: base.category, hsnSac: base.hsnSac,
+        taxRateId: base.taxRateId, priceIncludesTax: base.priceIncludesTax,
+        salePrice: s.salePrice ?? base.salePrice, purchasePrice: base.purchasePrice,
+        mrp: s.mrp === undefined ? base.mrp : s.mrp, wholesalePrice: base.wholesalePrice, wholesaleMinQty: base.wholesaleMinQty,
+        baseUnitId: base.baseUnitId, altUnitId: base.altUnitId, altConversion: base.altConversion, trackStock: base.trackStock,
+        openingQty: 0, openingRate: base.purchasePrice, openingDate: base.openingDate, lowStockQty: base.lowStockQty,
+        description: base.description, barcode: codes[k], customFields: sizeAt >= 0 || base.customFields ? own : null
+      }))
+    })
+  })()
+  return made
 }

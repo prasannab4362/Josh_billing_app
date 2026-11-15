@@ -8,6 +8,7 @@ import { Banner } from '../../components/Field'
 import { ItemForm } from './ItemForm'
 import { AdjustStockForm, StockSummaryView } from './StockViews'
 import { LabelsModal } from './LabelsModal'
+import { AddSizesModal } from './AddSizesModal'
 import { BulkUpdateModal } from './BulkUpdateModal'
 import { ImportModal } from '../../components/ImportModal'
 import { barcodeSvg } from '@shared/barcode'
@@ -61,6 +62,7 @@ function ItemsList({ startNew }: { startNew: boolean }) {
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [editing, setEditing] = useState<Item | 'new' | null>(startNew ? 'new' : null)
   const [adjusting, setAdjusting] = useState<Item | null>(null)
+  const [sizing, setSizing] = useState<Item | null>(null)
   const [labelsFor, setLabelsFor] = useState<string[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [bulk, setBulk] = useState(false)
@@ -246,6 +248,7 @@ function ItemsList({ startNew }: { startNew: boolean }) {
             </div>
             <span className="spacer" />
             <button className="btn small" onClick={() => setLabelsFor([selected.id])}><Icon name="barcode" size={15} />Print labels</button>
+            {selected.kind === 'goods' && <button className="btn small" onClick={() => setSizing(selected)}><Icon name="layers" size={15} />Add sizes</button>}
             {selected.trackStock && <button className="btn small" onClick={() => setAdjusting(selected)}>Adjust stock</button>}
             <button className="btn small" onClick={() => setEditing(selected)}><Icon name="edit" size={16} />Edit</button>
             <button className="btn small" onClick={() => toggleActive(selected)}>
@@ -346,6 +349,17 @@ function ItemsList({ startNew }: { startNew: boolean }) {
       )}
       {importing && <ImportModal kind="items" onClose={() => setImporting(false)} onImported={load} />}
       {bulk && <BulkUpdateModal items={items} onClose={() => setBulk(false)} onSaved={load} />}
+      {sizing && (
+        <AddSizesModal
+          item={sizing}
+          onClose={() => setSizing(null)}
+          onSaved={(made) => {
+            setSizing(null)
+            setMessage({ kind: 'success', text: `Added ${made.map((m) => `${m.name} (${m.barcode})`).join(', ')}. Print their labels to tag them.` })
+            load()
+          }}
+        />
+      )}
       {labelsFor && (
         <LabelsModal items={items} preselect={labelsFor} onClose={() => setLabelsFor(null)} onItemsChanged={load} />
       )}

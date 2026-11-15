@@ -18,6 +18,8 @@ includes reading every printed barcode and QR code back with a code reader.
 [Logo and signature](#logo-and-signature-on-bills-and-invoices) ·
 [Items and barcodes](#items-and-barcodes) ·
 [Printing labels](#printing-labels) ·
+[Label designs](#label-designs) ·
+[Year letters and sizes](#year-letters-and-sizes-aa-000011-ab-000011-) ·
 [Billing with a scanner](#billing-with-a-scanner) ·
 [Bill or invoice](#bill-or-invoice-print-as) ·
 [Shop setups](#shop-setups) ·
@@ -190,6 +192,155 @@ value ("D-220"), so the value is never cut off. The design you choose is remembe
 
 **Printer tip:** set the same paper size in the printer's own settings (for example 50 × 25 mm, or 102 × 25 mm
 for a 2-across roll) and print at **100% / actual size**, not "fit to page".
+
+---
+
+## Label designs
+
+The labels window has **8 designs**. Each one works with a **barcode or a QR code**, on any roll or sheet size,
+and shows the lines you choose (shop name, item name, price, MRP, size, colour, design no., dates…). Pick one
+under **Design**: the preview on the right changes at once, and the choice is remembered for the business.
+
+![Labels window with the design picker](images/designs-labels-window.png)
+
+| Design | Good for | Example |
+|---|---|---|
+| **Classic** | Any shop | ![Classic](images/design-classic-barcode.png) |
+| **Garment tag** | Clothing, bags, footwear: shop name on a black band, big price, code printed sideways, QR on the right | ![Garment tag with QR](images/design-garment-qr.png) |
+| **Garment tag** with a barcode | The same, with a barcode across | ![Garment tag with barcode](images/design-garment-barcode.png) |
+| **Price tag** | Gifts, stationery, footwear: big price | ![Price tag](images/design-priceTag-barcode.png) |
+| **Shelf strip** | Supermarket and kirana shelves: big price, MRP crossed out, "You save" | ![Shelf strip](images/design-shelf-barcode.png) |
+| **Boxed** | A neat bordered tag | ![Boxed](images/design-boxed-barcode.png) |
+| **Jewellery tag** | Gold covering and jewellery "dumbbell" tags (100 × 15 mm): code on one flap, details on the other, tail in the middle to loop | ![Jewellery tag](images/design-jewellery-qr.png) |
+| **Code only** | Cartons, bins, stock: just the code and its number | ![Code only](images/design-codeOnly-barcode.png) |
+| **Food packet** | Sweets, bakery, snacks: price and a packed / best-before box (type the dates for each print) | ![Food packet](images/design-food-barcode.png) |
+
+Prices print with the ₹ sign. The big-price designs drop ".00" for whole rupees (₹1,230), and the Shelf strip
+shows the MRP crossed out with the saving underneath.
+
+New roll sizes in the size list: **2 labels across, 50 × 38 mm** (common for garment tags) and **Jewellery tag,
+100 × 15 mm**. For any other roll use **+ Custom size**.
+
+### Barcode numbers in your own style (like 472-00001~1)
+
+An item's barcode can be **any code up to 40 characters**: letters, digits and symbols such as `-` and `~`.
+A shop moving from another billing program can keep the numbers already on its tags, for example
+`472-00001~1`. Type or scan the old tag into the item's **Barcode** box. Such codes print as a **Code 128
+barcode** or a **QR code**, and scanning them into a bill works like any other barcode.
+
+To number **new** items the same way, open the labels window and go to **Barcode numbers**:
+
+1. Choose **Own pattern**.
+2. Enter the **Prefix** (`472-`), the number of **Digits** (5) and the **Suffix** (`~1`). The example
+   updates as you type: `472-00001~1`.
+3. Press **Save numbering** (owner only).
+
+From then on, **Create** in the item form and **Create barcodes** in the labels window give the next free
+number after the highest one in use (`472-00002~1`, `472-00003~1`…). Choose **Store barcode (EAN-13)** to go
+back to standard 13-digit in-store barcodes.
+
+![Billing by scanning 472-00001~1 twice and 472-00002~1](images/designs-scan-472.png)
+
+**Checked** (`scripts/e2e/label-designs.mjs`, 38 of 38 passed):
+
+- The own pattern `472-` + 5 digits + `~1` was saved. **Create barcodes** gave `472-00001~1` and
+  `472-00002~1`, and **Create** offered `472-00003~1` next.
+- All 8 designs were printed with a barcode and with a QR code: 16 prints.
+- **Every printed code was read back**: QR codes with OpenCV, and Code 128 with the checker's own bar reader,
+  which measures the bars and decodes them with the standard Code 128 tables and check digit.
+- Scanning `472-00001~1` twice and `472-00002~1` made a bill of Swami Jolna Bag × 2 + Cotton Kurti × 1 = ₹3,259.
+- The chosen design is remembered.
+
+> Tip for scanners: `~` and `-` come out right only when the scanner's keyboard language is **US English**
+> (see Troubleshooting).
+
+### Year letters and sizes (AA-00001~1, AB-00001~1 …)
+
+Many clothing shops number their tags this way: **two letters for the accounting year**, a **product number**, and
+a **size number** after `~`. The labels window makes these numbers by itself.
+
+```
+EE - 00001 ~ 3
+│      │     └─ size number: ~1, ~2, ~3 … for the sizes of one product
+│      └─ product number: one per product (design)
+└─ year letters: EE this year, EF next year, EG the year after …
+```
+
+**The year letters.** The year you start gets the letters you choose: **AA** by default, or any pair you like (for
+example **EE** to carry on from an older system). Each new accounting year moves one step: AA → AB → AC … AZ → BA …
+up to ZZ. The year follows the business's **Financial year starts in** month (April by default), so the letters change
+on 1 April, not on 1 January.
+
+**The product number.** Choose what happens in a new year:
+
+- **Carry on** (default): numbers keep going up across years (EE-00512 in March, EF-00513 in April). No two products
+  ever share a number.
+- **Start the product number again at 1 each year**: EF-00001 in April. The year letters keep the codes apart.
+
+**The size number.** One product in several sizes shares the product number; only the number after `~` changes.
+
+| Item | Barcode |
+|---|---|
+| Cotton Kurti, size S | `EE-00001~1` |
+| Cotton Kurti, size M | `EE-00001~2` |
+| Cotton Kurti, size L | `EE-00001~3` |
+| Cotton Kurti, size XL | `EE-00001~4` |
+| Silk Saree (the next product) | `EE-00002~1` |
+
+- **Same product, same size, different colour → the same barcode.** A size is one item; its colours are not split.
+  Write the colour in the **Colour** field, or on the bill line if you need to.
+- **Different size or different product → a different barcode**, so the bill and the stock know exactly what was sold.
+- Turn **Size number after ~** off for shops without sizes: codes are then just `EE-00001`, `EE-00002` ….
+
+#### Set it up
+
+1. Settings › Extra fields: turn on item fields named **Size** and **Colour** (Section 4 of First-time setup).
+2. **Items › Print labels › Barcode numbers › Year letters.**
+3. Type the **letters for this year** (AA, or your own such as EE). Choose what goes **between** the letters and the
+   number (`-` by default), the **digits** (5) and the two switches. The box shows this year's and next year's letters.
+4. Press **Save numbering** (owner only).
+
+![Year letters in the labels window](images/yearcodes-numbering.png)
+
+From then on, **Create** in the item form and **Create barcodes** in the labels window give `EE-00001~1`,
+`EE-00002~1`, … to new products.
+
+#### Add the sizes of a product
+
+1. Open the product in **Items** (for example *Cotton Kurti*, size S, `EE-00001~1`).
+2. Press **Add sizes**. Tap the sizes (XS … 3XL, Free size, 28 … 40) or type your own. Leave the price blank to keep
+   the product's price, or type a different one (XL ₹849 below).
+3. Press **Add 3 sizes**.
+
+![Add sizes window](images/yearcodes-add-sizes.png)
+
+Each size becomes its own item, **Cotton Kurti (M)**, **(L)**, **(XL)**, with the same product number and the next size
+numbers (`~2`, `~3`, `~4`). Category, GST, unit, MRP, colour and the other details are copied; the Size field is filled
+in; stock starts at nil (add it with a purchase bill or Adjust stock). If the product has no barcode yet, it gets one
+first. With EAN-13 or a pattern without `~`, each size gets the next new number instead.
+
+Print the tags as usual. Every size shows its own size and code:
+
+![Garment tags for every size, with QR codes](images/yearcodes-tags-qr.png)
+
+![The same with barcodes](images/yearcodes-tags-barcode.png)
+
+At the counter, scanning `EE-00001~4` adds **Cotton Kurti (XL)** at ₹849, and the stock of XL goes down, not of S:
+
+![Billing by scanning sizes](images/yearcodes-scan.png)
+
+**Checked** (`scripts/e2e/year-codes.mjs`, 16 of 16 passed):
+
+- Year letters **EE** were set in the labels window. The box showed EE for 2026-27 and EF for 2027-28, and the setting
+  was saved.
+- **Create barcodes** gave `EE-00001~1` (Cotton Kurti, S) and `EE-00002~1` (Silk Saree).
+- **Add sizes** M, L, XL (XL at ₹849) made Cotton Kurti (M) `EE-00001~2`, (L) `EE-00001~3` and (XL) `EE-00001~4`, with
+  the Size field filled and the colour copied. The next new product was still `EE-00003~1`.
+- Garment tags for all five items were printed with barcodes and with QR codes, and **every code was read back**.
+- Scanning S once, XL twice and the saree made a bill of ₹799 + ₹849 × 2 + ₹2,499 = **₹4,996**, and the XL stock went down
+  by 2 (each size keeps its own stock).
+- The unit tests (`src/main/services/yearCodes.test.ts`) also check AZ → BA, ZZ (refused after it), EZ → FA, starting
+  again each year, calendar-year businesses and the refusals.
 
 ---
 
@@ -434,7 +585,8 @@ best-before **for each print** in the labels window, so every batch gets its own
 | Problem | Fix |
 |---|---|
 | Scanning does nothing | Click in the scan box first. Check the scanner sends **Enter** after the code (see its manual's setup barcodes). |
-| Wrong characters appear when scanning | Set the scanner's keyboard language to **US English**. |
+| Wrong characters appear when scanning | Set the scanner's keyboard language to **US English**. Codes with `~` or `-` (like 472-00001~1) need this most. |
+| Year letters did not change on 1 April | The letters follow **Settings › Business › Financial year starts in**. Check that month, and the computer's date. |
 | QR labels don't scan | A 1D (laser) scanner cannot read QR codes. Use a 2D scanner, or print **Barcode** instead. |
 | "No item has the barcode or code …" | The item has no barcode yet, or a different one. Open the item and scan the pack into its Barcode box. |
 | Labels print cut off or shifted | Set the printer's paper size to the label size and print at 100%. For rolls with 2 labels across, the paper width is both labels plus the gap. |
