@@ -1,6 +1,6 @@
 {
   "name": "billing-app",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Offline-first GST billing, inventory and accounts app",
   "main": "./out/main/index.js",
