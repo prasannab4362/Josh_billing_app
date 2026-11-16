@@ -174,7 +174,7 @@ starting any of these; sync in particular needs decisions first.
 
 ## Git
 
-- Branch `main`, remote `owner/Josh_billing_app` (public). Commits are authored as `owner`
+- Branch `main`, the remote is the project's GitHub repository (public). Commits are authored as `Josh Billing`
   (repo-local git config).
 - **Do not add `Co-Authored-By` or any AI attribution to commits or PRs** in this repo; the owner asked for that.
 - Never commit business data: `*.db`, backups, `out/`, `node_modules/` are ignored. Use made-up names, phone
