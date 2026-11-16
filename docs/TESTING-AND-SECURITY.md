@@ -120,3 +120,31 @@ Use made-up data in the test profile and record the expected and actual amounts.
 - Enable owner/staff login, check restricted actions, failed-password lockout, recovery and idle locking.
 
 Physical printer output, hardware scanner input, clean-machine installation and code signing need separate acceptance runs.
+
+
+## Review of 16 November 2026 (security, data safety, wholesale, layout)
+
+Checked: window and page hardening (no network, no popups, only the app's own window may call the main process),
+password storage (salted scrypt, constant-time compare, lockout), the page's content-security policy, dynamic SQL
+(only built from fixed lists, everything else uses parameters), `eval`/`innerHTML` use (none; the three
+`dangerouslySetInnerHTML` calls draw barcode and QR shapes made from numbers), secrets and personal data in the
+repository (none), and what leaves the computer (nothing: WhatsApp, Gmail, mail and SMS open the user's own app).
+
+Found and fixed:
+- Pictures stored in the database were put into printed pages as-is. A doctored backup could have broken out of the
+  image tag. Only base64 PNG/JPEG/WebP now pass (`safeImage`).
+- A damaged data file was opened (or failed with a raw SQLite message and left the file locked). It is now checked on
+  open, refused with a message naming the newest backup, and the handle is always closed.
+- Backups were not checked after writing and a damaged backup could be restored over good data. Backups are now
+  written aside, verified and moved into place; restore checks the file first.
+- Saves are durable on power loss (`synchronous = FULL`).
+- A second backup place (another drive or a cloud-synced folder) and half-hourly and on-close backups were added.
+- Wholesale prices worked only per line. A "wholesale bill" switch and a bulk-order suggestion now work the same in
+  the counter and the sale invoice editor (textile sizes are separate items).
+- A style I added earlier cleared the padding of the dashboard cards; fixed. A statement table pushed the Cash & bank
+  page sideways, and settings tables did at the smallest window size; fixed.
+- The POS quantity box kept showing letters after they were ignored; fixed.
+
+Not fixed: `npm audit` still lists development-tool packages (build and test tooling, not shipped in the app).
+Run: `npm test` (296 tests), then `scripts/e2e/ui-check.mjs`, `textile-wholesale.mjs`, `pos-share.mjs`,
+`backup-safety.mjs`, `smoke.mjs`.

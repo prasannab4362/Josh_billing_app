@@ -6,11 +6,38 @@ export type DB = Database.Database
 /** Open a business database file (or ':memory:') with safe defaults and run migrations. */
 export function openDatabase(path: string, migrations: Migration[] = defaultMigrations): DB {
   const db = new Database(path)
-  db.pragma('foreign_keys = ON')
-  if (path !== ':memory:') db.pragma('journal_mode = WAL')
-  db.pragma('busy_timeout = 5000')
-  migrate(db, migrations)
+  try {
+    db.pragma('foreign_keys = ON')
+    if (path !== ':memory:') {
+      db.pragma('journal_mode = WAL')
+      // FULL: a saved bill survives a power cut or a crash the moment the save returns.
+      db.pragma('synchronous = FULL')
+    }
+    db.pragma('busy_timeout = 5000')
+    migrate(db, migrations)
+  } catch (err) {
+    db.close() // never leave a half-opened file locked
+    throw err
+  }
   return db
+}
+
+/** True for the errors SQLite gives when a file is damaged or is not a database at all. */
+export function isDamageError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code ?? ''
+  return code === 'SQLITE_CORRUPT' || code === 'SQLITE_NOTADB' || /malformed|not a database|disk image/i.test((err as Error)?.message ?? '')
+}
+
+/**
+ * Look for damage in a database file: broken pages, bad indexes, rows that point to nothing.
+ * Returns what was found (empty = healthy). `quick` skips the slower index-by-index comparison.
+ */
+export function databaseProblems(db: DB, quick = false): string[] {
+  const rows = db.pragma(quick ? 'quick_check' : 'integrity_check') as Record<string, string>[]
+  const problems = rows.map((r) => Object.values(r)[0]).filter((v) => v !== 'ok')
+  const orphans = db.pragma('foreign_key_check') as { table: string }[]
+  if (orphans.length) problems.push(`${orphans.length} record(s) point to something that no longer exists (in ${[...new Set(orphans.map((o) => o.table))].join(', ')})`)
+  return problems
 }
 
 export function schemaVersion(db: DB): number {

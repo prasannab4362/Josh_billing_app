@@ -38,6 +38,32 @@ export function BackupTab({ business, onBusinessChange }: { business: Business; 
     }
   }
 
+  const [mirror, setMirror] = useState<string | null>(null)
+  useEffect(() => {
+    api.getBackupMirror().then(setMirror, () => setMirror(null))
+  }, [business.id])
+  const chooseMirror = () =>
+    run(async () => {
+      const dir = await api.chooseBackupMirror()
+      if (!dir) return
+      setMirror(dir)
+      const r = await api.backupToMirrorNow()
+      setMessage({ kind: 'success', text: `Second backup place set. A first copy was saved: ${r.mirror ?? dir}` })
+      load()
+    })
+  const mirrorNow = () =>
+    run(async () => {
+      const r = await api.backupToMirrorNow()
+      setMessage({ kind: 'success', text: `Backed up${r.mirror ? ` here and in the second place: ${r.mirror}` : ''}.` })
+      load()
+    })
+  const checkData = () =>
+    run(async () => {
+      const problems = await api.checkDatabase()
+      setMessage(problems.length
+        ? { kind: 'error', text: `Problem found in the data file: ${problems.slice(0, 3).join('; ')}. Do not keep working: restore the newest backup.` }
+        : { kind: 'success', text: 'The data file is healthy: no damage found.' })
+    })
   const backupNow = () =>
     run(async () => {
       const path = await api.backupNow()
@@ -81,6 +107,23 @@ export function BackupTab({ business, onBusinessChange }: { business: Business; 
         </div>
       </div>
 
+      <div className="mirror-card">
+        <div>
+          <h3>Second copy, so nothing is ever lost</h3>
+          {mirror ? (
+            <p className="muted">Every backup is also copied to <b>{mirror}</b> (the last 7 days are kept). Use a pen drive, a second drive, or a OneDrive / Google Drive folder, so a broken computer cannot take your data with it.</p>
+          ) : (
+            <p className="muted">Not set yet. Choose a pen drive, a second drive, or a OneDrive / Google Drive folder: every backup is then copied there too, so a broken or stolen computer cannot take your data with it.</p>
+          )}
+        </div>
+        <div className="row-flex">
+          <button className="btn primary" onClick={chooseMirror} disabled={busy}>{mirror ? 'Change folder…' : 'Choose folder…'}</button>
+          {mirror && <button className="btn" onClick={mirrorNow} disabled={busy}>Back up to both now</button>}
+          {mirror && <button className="btn" onClick={() => run(async () => { await api.clearBackupMirror(); setMirror(null) })} disabled={busy}>Stop</button>}
+          <button className="btn" onClick={checkData} disabled={busy}>Check data for damage</button>
+        </div>
+      </div>
+
       {chosen && (
         <div className="restore-box">
           <h3>Backup of {chosen.businessName}</h3>
@@ -102,7 +145,7 @@ export function BackupTab({ business, onBusinessChange }: { business: Business; 
         <span className="spacer" />
         <button className="btn small" onClick={() => api.openBackupFolder()}>Open folder</button>
       </div>
-      <p className="muted">A copy is taken automatically each day you open this business; the last 7 are kept.</p>
+      <p className="muted">A copy is taken automatically when you open this business and refreshed every half hour while you work; the last 7 days are kept.</p>
       <table className="table">
         <thead>
           <tr><th>Taken</th><th>Kind</th><th className="amount">Size</th><th /></tr>

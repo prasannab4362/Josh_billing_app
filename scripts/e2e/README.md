@@ -20,6 +20,9 @@ Electron window over the Chrome DevTools Protocol.
    `opencv-contrib-python`): `node scripts/e2e/shop-tour.mjs e2e-out`. Screenshots go to `e2e-out/tour`.
 6. Label designs (38 checks): `node scripts/e2e/label-designs.mjs e2e-out`. Year letters and sizes (16 checks):
    `node scripts/e2e/year-codes.mjs e2e-out`.
+9. Every page at three window sizes (66 checks): `node scripts/e2e/ui-check.mjs e2e-out`. Textile and wholesale
+   (18 checks): `node scripts/e2e/textile-wholesale.mjs e2e-out`. Second backup place and damage check (7 checks):
+   `node scripts/e2e/backup-safety.mjs e2e-out`.
 8. POS counter and bill sharing (24 checks): `node scripts/e2e/pos-share.mjs e2e-out`. Links and prints are recorded,
    nothing is sent or printed.
 7. Logo and signature (21 checks, after the shop tour): `node scripts/e2e/logo-signature.mjs e2e-out`. Pictures go to

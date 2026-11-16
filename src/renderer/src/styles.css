@@ -967,13 +967,48 @@ tr.row-bad td { background: var(--danger-soft); }
 .pos-lines { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; min-height: 360px; max-height: calc(100vh - 330px); overflow: auto; }
 .pos-lines tbody tr { cursor: pointer; }
 .pos-empty { text-align: center; color: var(--muted); padding: 60px 10px !important; }
-.pos-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.pos-keys .btn { justify-content: center; }
+.pos-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pos-keys .btn { justify-content: center; min-width: 0; padding-left: 8px; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-right { position: sticky; top: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .pos-total { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
 .pos-total b { font-size: 18px; }
 .pos-change { display: flex; justify-content: space-between; align-items: baseline; font-size: 16px; border-top: 1px dashed var(--border); padding-top: 10px; }
 .pos-change b { font-size: 22px; }
 .pos-save { justify-content: center; padding: 12px; font-size: 15px; }
-button.link { border: 0; background: none; color: var(--accent-text); cursor: pointer; font: inherit; padding: 0; }
+button.link-btn { border: 0; background: none; color: var(--accent-text); cursor: pointer; font: inherit; padding: 0; }
 @media (max-width: 1100px) { .pos-body { grid-template-columns: 1fr; } .pos-right { position: static; } .pos-keys { grid-template-columns: repeat(2, 1fr); } }
+
+.mirror-card { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding: 14px 16px; border: 1px solid var(--info-line); background: var(--info-soft); border-radius: 12px; }
+.mirror-card h3 { margin: 0 0 4px; }
+.mirror-card p { margin: 0; }
+
+.pos-qty { white-space: nowrap; }
+.pos-qty .input { width: 56px; text-align: center; padding: 3px 4px; display: inline-block; }
+.qty-btn { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; font-size: 16px; line-height: 1; }
+.qty-btn:hover { border-color: var(--accent); color: var(--accent-text); }
+
+/* Wider search boxes, tabs that fit a small window, and a friendlier empty counter. */
+.toolbar .search, .toolbar .search-wrap { min-width: 280px; flex: 1 1 280px; max-width: 460px; }
+@media (max-width: 1150px) {
+  .tabs .tab { padding: 7px 10px; }
+  .tabs .tab svg { display: none; }
+}
+.pos-empty-art { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); }
+.pos-empty-art svg { color: var(--faint); }
+
+/* A table that is wider than its page scrolls inside its own box instead of pushing the page sideways. */
+.table-wrap { max-width: 100%; overflow-x: auto; }
+.table td { overflow-wrap: anywhere; }
+.table td.nowrap, .table td.amount { overflow-wrap: normal; }
+/* Settings and report pages: the page never grows past the window; a wide table scrolls inside its card. */
+.reports { min-width: 0; }
+.report-body { min-width: 0; }
+.report-body > .card, .report-body .card.wide { max-width: 100%; overflow-x: auto; }
+/* A narrow window: the settings / reports menu becomes a wrapped row above the page, so the page gets the full width. */
+@media (max-width: 1180px) {
+  .reports { flex-direction: column; gap: 14px; align-items: stretch; }
+  .report-nav { width: auto; position: static; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 10px; }
+  .report-nav > div { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+  .report-nav .menu-label { margin: 0 4px 0 0; }
+  .report-nav .nav { width: auto; padding: 6px 10px; }
+}

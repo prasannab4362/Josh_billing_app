@@ -13,6 +13,7 @@ interface Props {
 
 export function StatementTable({ statement, debitLabel, creditLabel, balance = (p) => formatINR(p), action }: Props) {
   return (
+    <div className="table-wrap">
     <table className="table">
       <thead>
         <tr>
@@ -68,5 +69,6 @@ export function StatementTable({ statement, debitLabel, creditLabel, balance = (
         </tfoot>
       )}
     </table>
+    </div>
   )
 }

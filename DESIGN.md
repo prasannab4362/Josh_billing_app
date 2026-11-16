@@ -352,7 +352,7 @@ Settled:
 
 Still open (need the owner's decision before building):
 
-5. **Users and roles:** passcode only, or named users with permissions?
+5. **Users and roles:** (owner and staff logins are built; finer permissions are open) passcode only, or named users with permissions?
 6. **Sync between devices:** none, a shared folder, or a server? Affects IDs (already UUIDs) and conflict rules.
 7. **Stock per batch:** keep batch as a printed detail (today) or track stock and expiry per batch?
 
@@ -372,3 +372,15 @@ Still open (need the owner's decision before building):
   from bills (PDF kept in Documents\Billing App\Shared) and parties, Google profile helper and review QR poster.
   Online store, ads and Google sign-in are not built: they need servers and accounts.
 - Not built: Tally import, reverse charge / composition scheme / TCS / TDS, free quantity, passcode, multi-currency.
+
+## Two places for the data: desktop now, website later
+
+Today the data lives in one SQLite file per business on the desktop, with a verified backup every half hour and on
+closing, and a second copy in a folder the owner chooses (pen drive, second drive, or a OneDrive / Google Drive
+folder). Restoring on another computer is "Open a backup file".
+
+A website version that stays in step with the desktop needs a hosted server. Decisions needed before building it:
+who hosts it and pays; one owner login per business and how staff sign in; whether the desktop keeps working offline
+and syncs later (recommended: every row already has a UUID and `updated_at`; bills would sync as whole documents, with
+the server refusing a bill number already used); what happens when two places change the same party. Until then the
+second backup folder is the safe way to have the data in two places.

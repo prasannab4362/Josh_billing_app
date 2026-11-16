@@ -2,6 +2,7 @@
 // for printing and for PDF export, so all three always match. Its look comes from the
 // business's print settings: layout, colour, text size and which parts are shown.
 
+import { safeImage } from './safeHtml'
 import { BILL_INFO } from './billTypes'
 import type { BillType, Business, Invoice, MoneyAccount, PaperSize } from './models'
 import { formatINR, formatPercent, splitHalves } from './money'
@@ -291,7 +292,7 @@ export function invoiceHtml(d: InvoicePrintData): string {
 <body class="${bodyClass}"><div class="page">
   <div class="doc-title">${title}</div>
   <div class="top">
-    <div class="biz">${show.logo && b.logo ? `<img class="logo" src="${b.logo}" alt="">` : ''}<div><h1>${esc(b.name)}</h1><div class="small">${bizLines.join('<br>')}</div></div></div>
+    <div class="biz">${show.logo && safeImage(b.logo) ? `<img class="logo" src="${safeImage(b.logo)}" alt="">` : ''}<div><h1>${esc(b.name)}</h1><div class="small">${bizLines.join('<br>')}</div></div></div>
     <div class="title"><h2>${title}</h2>
       <table class="meta">
         <tr><td class="muted">${esc(info.noun)} no.</td><td><strong>${esc(inv.number)}</strong></td></tr>
@@ -327,7 +328,7 @@ export function invoiceHtml(d: InvoicePrintData): string {
     </table>
     ${thermal ? upi : ''}
   </div>
-  ${show.signature ? `<div class="sign${show.signatureOnBill ? '' : ' hide-thermal'}"><div>For ${esc(b.name)}</div>${b.signature ? `<img src="${b.signature}" alt="">` : ''}<div class="line">Authorised signatory</div></div>` : ''}
+  ${show.signature ? `<div class="sign${show.signatureOnBill ? '' : ' hide-thermal'}"><div>For ${esc(b.name)}</div>${safeImage(b.signature) ? `<img src="${safeImage(b.signature)}" alt="">` : ''}<div class="line">Authorised signatory</div></div>` : ''}
   ${s.footer.trim() ? `<div class="footer">${lines(s.footer.trim())}</div>` : ''}
 </div></body></html>`
 }

@@ -26,6 +26,8 @@ export interface PosContext {
   registered: boolean
   supply: SupplyType
   roundOff: boolean
+  /** A wholesale bill: every item that has a wholesale price uses it, whatever the quantity. */
+  wholesaleBill?: boolean
 }
 
 /** Milli base units in one line unit. */
@@ -37,16 +39,48 @@ export function taxOf(item: Item, ctx: PosContext): { bp: number; cess: number }
   return ctx.registered && r ? { bp: r.rateBp, cess: r.cessBp } : { bp: 0, cess: 0 }
 }
 
-/** True when the quantity reaches the item's wholesale minimum (counted in the main unit). */
-export function isWholesale(item: Item, l: Pick<PosLine, 'qty' | 'useAltUnit'>): boolean {
-  return item.wholesalePrice !== null && item.wholesaleMinQty !== null && toBaseUnits(l.qty, unitFactor(item, l)) >= item.wholesaleMinQty
+/**
+ * True when this line gets the item's wholesale price: the quantity reaches the item's wholesale minimum
+ * (counted in the main unit), or the whole bill is a wholesale bill.
+ */
+export function isWholesale(item: Item, l: Pick<PosLine, 'qty' | 'useAltUnit'>, wholesaleBill = false): boolean {
+  if (item.wholesalePrice === null) return false
+  if (wholesaleBill) return true
+  return item.wholesaleMinQty !== null && toBaseUnits(l.qty, unitFactor(item, l)) >= item.wholesaleMinQty
+}
+
+export interface BulkHint {
+  /** Pieces (main units) on the bill across items that have a wholesale price but are not on it yet. */
+  pieces: number
+  /** The smallest wholesale minimum among those items. */
+  minimum: number
+  items: number
+}
+
+/**
+ * When the bill as a whole is as big as a wholesale order but no single line is (textile sizes are separate items:
+ * 10 of Shirt M and 8 of Shirt L), suggest switching the whole bill to wholesale prices.
+ */
+export function bulkHint(lines: Pick<PosLine, 'itemId' | 'qty' | 'useAltUnit' | 'priceOverride'>[], items: Map<string, Item>): BulkHint | null {
+  let pieces = 0
+  let minimum = Infinity
+  let n = 0
+  for (const l of lines) {
+    const item = items.get(l.itemId)
+    if (!item || item.wholesalePrice === null || item.wholesaleMinQty === null || l.priceOverride !== null) continue
+    if (isWholesale(item, l)) continue
+    pieces += toBaseUnits(l.qty, unitFactor(item, l))
+    minimum = Math.min(minimum, item.wholesaleMinQty)
+    n++
+  }
+  return n >= 2 && pieces >= minimum ? { pieces, minimum, items: n } : null
 }
 
 /** Price per line unit on this bill: typed price, else wholesale or retail, turned to the bill's tax basis. */
 export function linePrice(item: Item, l: PosLine, ctx: PosContext): number {
   if (l.priceOverride !== null) return l.priceOverride
   const t = taxOf(item, ctx)
-  const perBase = priceForDocument(isWholesale(item, l) ? item.wholesalePrice! : item.salePrice, item.priceIncludesTax, ctx.inclusive, t.bp + t.cess)
+  const perBase = priceForDocument(isWholesale(item, l, ctx.wholesaleBill) ? item.wholesalePrice! : item.salePrice, item.priceIncludesTax, ctx.inclusive, t.bp + t.cess)
   return lineAmount(unitFactor(item, l), perBase)
 }
 

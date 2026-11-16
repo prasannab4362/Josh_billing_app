@@ -1,4 +1,5 @@
 // Sharing with customers: the product catalogue page, WhatsApp message texts and links.
+import { safeImage } from './safeHtml'
 import type { Business, Invoice, MoneyAccount, Party } from './models'
 import { BILL_INFO, type BillType } from './billTypes'
 import { formatINR } from './money'
@@ -40,7 +41,7 @@ export function catalogueHtml(items: CatalogueItem[], o: CatalogueOptions, b: Pi
   const card = (i: CatalogueItem) => {
     const off = o.showMrp && i.mrp && i.mrp > i.price ? Math.round(((i.mrp - i.price) / i.mrp) * 100) : 0
     return `<div class="card">
-      <div class="ph">${i.photo ? `<img src="${i.photo}" alt="">` : `<span>${esc(i.name.slice(0, 1).toUpperCase())}</span>`}</div>
+      <div class="ph">${safeImage(i.photo) ? `<img src="${safeImage(i.photo)}" alt="">` : `<span>${esc(i.name.slice(0, 1).toUpperCase())}</span>`}</div>
       <div class="nm">${esc(i.name)}</div>
       ${o.showDescription && i.description ? `<div class="ds">${esc(i.description)}</div>` : ''}
       ${o.showPrice ? `<div class="pr"><b>${formatINR(i.price)}</b>${i.unit ? `<small>/${esc(i.unit)}</small>` : ''}${o.showMrp && i.mrp && i.mrp > i.price ? ` <s>${formatINR(i.mrp)}</s>` : ''}</div>` : ''}
@@ -80,7 +81,7 @@ h2 { font-size: 14px; margin: 14px 0 6px; padding: 4px 8px; background: #f1f3f5;
 .off { align-self: flex-start; background: #e03131; color: #fff; font-weight: 700; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
 footer { margin-top: 14px; color: #666; text-align: center; }
 </style></head><body>
-<header>${b.logo ? `<img src="${b.logo}" alt="">` : ''}<div><h1>${esc(b.name)}</h1><div class="c">${contact}</div></div></header>
+<header>${safeImage(b.logo) ? `<img src="${safeImage(b.logo)}" alt="">` : ''}<div><h1>${esc(b.name)}</h1><div class="c">${contact}</div></div></header>
 <div class="title">${esc(o.title)}</div>${o.note.trim() ? `<div class="note">${esc(o.note.trim())}</div>` : ''}
 ${body || '<p>No items chosen.</p>'}
 <footer>Prices include GST. Order on WhatsApp${b.phone ? `: ${esc(b.phone)}` : ''}.</footer>

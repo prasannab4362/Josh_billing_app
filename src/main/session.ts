@@ -1,12 +1,12 @@
 // Which business is open right now, and opening / creating / switching between them.
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import type { BackupFile, BackupInfo } from '@shared/data'
 import { todayLocal } from '@shared/fy'
 import type { Business, CreateBusinessInput } from '@shared/models'
-import { openDatabase, type DB } from './db/connection'
+import { databaseProblems, isDamageError, openDatabase, type DB } from './db/connection'
 import { migrations } from './db/migrations'
 import { BusinessRegistry } from './registry'
 import { getBusiness, setupBusiness } from './services/business'
@@ -71,7 +71,31 @@ export class Session {
     if (!this.registry.get(id)) throw new UserError('That business was not found')
     const path = this.registry.pathFor(id)
     if (!existsSync(path)) throw new UserError('The data file for this business is missing')
-    const db = openDatabase(path)
+    // A damaged file is not opened (opening and saving could make it worse): say so, and point to the backups.
+    const damaged = (why: string) => {
+      const dir = this.backupDir(id)
+      const last = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.db') && !f.startsWith('.')).sort().pop() : undefined
+      return new UserError(
+        `The data file of this business is damaged (${why}). Nothing was changed. ` +
+          (last ? `Your newest backup is ${last} in ${dir}: restore it with "Open a backup file".` : 'Restore a backup with "Open a backup file".')
+      )
+    }
+    let db: DB
+    try {
+      db = openDatabase(path)
+    } catch (err) {
+      throw isDamageError(err) ? damaged((err as Error).message) : err
+    }
+    let problems: string[]
+    try {
+      problems = databaseProblems(db, true)
+    } catch (err) {
+      problems = [(err as Error).message]
+    }
+    if (problems.length) {
+      db.close()
+      throw damaged(problems[0])
+    }
     this.close()
     this.db = db
     this.currentId = id
@@ -121,26 +145,93 @@ export class Session {
   async backupTo(path: string): Promise<string> {
     const db = this.requireDb()
     if (resolve(path) === resolve(this.dbPath!)) throw new UserError('Choose a different file to save the backup to')
-    rmSync(path, { force: true })
-    await db.backup(path)
-    // A plain single file (no -wal/-shm companions), so it can be copied or emailed as is.
-    const copy = new Database(path)
+    // Written beside the target and moved into place only once it checks out, so a failed or half-finished
+    // backup never replaces a good one.
+    const temp = `${path}.partial`
+    rmSync(temp, { force: true })
     try {
-      copy.pragma('journal_mode = DELETE')
-    } finally {
-      copy.close()
+      await db.backup(temp)
+      // A plain single file (no -wal/-shm companions), so it can be copied or emailed as is.
+      const copy = new Database(temp)
+      try {
+        copy.pragma('journal_mode = DELETE')
+        const problems = databaseProblems(copy, true)
+        if (problems.length) throw new UserError(`The backup did not check out (${problems[0]}), so it was not kept`)
+        const want = (db.prepare('SELECT COUNT(*) AS n FROM document').get() as { n: number }).n
+        const got = (copy.prepare('SELECT COUNT(*) AS n FROM document').get() as { n: number }).n
+        if (got < want) throw new UserError('The backup is missing bills, so it was not kept')
+      } finally {
+        copy.close()
+      }
+      rmSync(path, { force: true })
+      renameSync(temp, path)
+    } catch (err) {
+      rmSync(temp, { force: true })
+      throw err
     }
     return path
   }
 
+  // ---------- A second place for backups (another drive, or a OneDrive / Google Drive folder) ----------
+
+  private get settingsFile(): string {
+    return join(this.baseDir, 'app-settings.json')
+  }
+
+  /** The folder every new backup is also copied to, or null. */
+  get mirrorDir(): string | null {
+    try {
+      const v = JSON.parse(readFileSync(this.settingsFile, 'utf8')) as { mirrorDir?: string | null }
+      return typeof v.mirrorDir === 'string' && v.mirrorDir ? v.mirrorDir : null
+    } catch {
+      return null
+    }
+  }
+
+  /** Choose the second backup place (null = none). The folder must exist and accept files. */
+  setMirrorDir(dir: string | null): void {
+    if (dir !== null) {
+      if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new UserError('That folder was not found')
+      if (resolve(dir).startsWith(resolve(this.baseDir))) throw new UserError('Choose a folder outside the app’s own data folder, such as a pen drive or cloud folder')
+      const probe = join(dir, `.write-test-${Date.now()}`)
+      try {
+        writeFileSync(probe, 'ok')
+        rmSync(probe, { force: true })
+      } catch {
+        throw new UserError('Files cannot be saved in that folder. Choose another one')
+      }
+    }
+    writeFileSync(this.settingsFile, JSON.stringify({ mirrorDir: dir }), 'utf8')
+  }
+
+  /** Copy the newest backup of the open business into the second place; returns the file, or null when none is set. */
+  async mirrorLatest(): Promise<string | null> {
+    const dir = this.mirrorDir
+    if (!dir || !this.db) return null
+    if (!existsSync(dir)) throw new UserError(`The second backup folder ${dir} is not available (drive unplugged?)`)
+    const biz = getBusiness(this.db)
+    const safe = biz.name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'business'
+    const target = join(dir, `${safe} (${biz.id.slice(0, 6)})`)
+    mkdirSync(target, { recursive: true })
+    const file = join(target, `backup-${todayLocal()}.db`)
+    await this.backupTo(file)
+    const old = readdirSync(target).filter((f) => /^backup-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().reverse()
+    for (const f of old.slice(Session.KEEP_AUTO)) rmSync(join(target, f), { force: true })
+    return file
+  }
+
   /** Take today's automatic backup if there is none yet, keeping the newest few. Returns its path, or null. */
-  async autoBackup(today = todayLocal()): Promise<string | null> {
+  async autoBackup(today = todayLocal(), force = false): Promise<string | null> {
     if (!this.db) return null
     const dir = this.backupDir()
     mkdirSync(dir, { recursive: true })
     const path = join(dir, `auto-${today}.db`)
-    if (existsSync(path)) return null
+    if (existsSync(path)) {
+      // Refresh today's copy when more than half an hour old, so a day's work is never all lost.
+      if (!force && Date.now() - statSync(path).mtimeMs < 30 * 60_000) return null
+    }
     await this.backupTo(path)
+    await this.mirrorLatest().catch((err) => console.error('Second backup failed', err))
     const autos = readdirSync(dir).filter((f) => /^auto-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().reverse()
     for (const old of autos.slice(Session.KEEP_AUTO)) rmSync(join(dir, old), { force: true })
     return path
@@ -219,6 +310,17 @@ export class Session {
     } catch (err) {
       rmSync(source, { force: true })
       throw err
+    }
+    // Never replace good data with a damaged file: check the backup itself first.
+    const probe = new Database(source, { readonly: true })
+    try {
+      const problems = databaseProblems(probe, true)
+      if (problems.length) throw new UserError(`That backup file is damaged (${problems[0]}). Nothing was changed`)
+    } catch (err) {
+      rmSync(source, { force: true })
+      throw err
+    } finally {
+      probe.close()
     }
     this.close()
     try {

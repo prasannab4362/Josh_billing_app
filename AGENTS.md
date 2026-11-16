@@ -83,6 +83,22 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
   comes from `printData()` in `src/main/ipc.ts`; add new print inputs there. Any bill can be printed on another paper
   than the business default (the `paper` argument of `getBillPrint` / `printBill` / `exportBillPdf`, shown as the
   "Print as" switch: bill 80/58 mm or invoice A4/A5).
+- **Data must never die.** Every business file is opened with `synchronous = FULL` (WAL) and checked for damage on
+  open (`databaseProblems` in `db/connection.ts`): a damaged file is refused with a message naming the newest
+  backup, never opened and written to. Backups are written beside their target as `.partial`, checked
+  (`quick_check`, bill count) and only then moved into place; a damaged backup is never restored. Backups are
+  refreshed every 30 minutes and on closing, and copied to the owner's second place (`Session.mirrorDir`, stored in
+  `app-settings.json`; a pen drive or a OneDrive/Google Drive folder). New code that opens a database must close it
+  on every error path.
+- **Pictures in HTML:** any logo, signature or photo put into a printed page goes through `safeImage()`
+  (`shared/safeHtml.ts`): only base64 PNG, JPEG and WebP data URLs pass. Text goes through the page's `esc()`.
+- **Wholesale:** `isWholesale`/`linePrice` in `shared/pos.ts` are the one rule for the counter AND the invoice
+  editor: the item's wholesale price applies from its minimum quantity (counted in main units, so 2 dozen = 24 pcs),
+  or on every item that has one when the bill is a "wholesale bill". `bulkHint` suggests that switch when a bill is
+  bulk-sized only across items (textile sizes are separate items). A price typed on a line is never replaced.
+  `services/textile.test.ts` checks counter and saved invoice agree to the paisa over 150 random bills.
+- **CSS class names are shared across screens:** before adding a generic class (`link`, `card`, `tab`…) grep
+  `styles.css`; a clash once wiped the dashboard cards' padding. `scripts/e2e/ui-check.mjs` finds such damage.
 - **Nothing is sent from the app.** WhatsApp opens through `https://wa.me/` links with the text filled in; the user
   presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Gmail's compose page, `mailto:` (address, subject, body only),
   `sms:` (an Indian mobile and body only), Google Business and Google review links (`isSafeExternalUrl` in
@@ -101,7 +117,7 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 283 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 296 tests at the time of writing. Add tests for every rule you add, including the refusals.
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
 - `scripts/e2e/business-check.mjs` sets up one test business per trade and checks its everyday bills (totals, GST
   split, stock, payments, PDF). Run it after changes to billing, tax, units, stock or printing, and update the
@@ -117,6 +133,11 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
   and bills by scanning. Year letters move with the accounting year (`currentFy` in `services/labels.ts`).
 - `scripts/e2e/pos-share.mjs` checks the POS (scan, wholesale from the minimum quantity, F-keys, discount, charge,
   change, walk-in must pay in full, credit to a customer, Ctrl+P print, bill tabs) and the share panel (24 checks).
+- `scripts/e2e/ui-check.mjs` visits every page and settings menu entry at 960×600, 1280×800 and 1600×900 and fails on
+  anything cut off or scrolling sideways (66 checks). Run it after any CSS or layout change.
+- `scripts/e2e/textile-wholesale.mjs` (18 checks): bulk order over sizes, exact switch at the minimum, `+`/`−`/typed
+  quantities, tax-inclusive saree, and the same bill made in the counter and in the invoice editor.
+- `scripts/e2e/backup-safety.mjs` (7 checks): second backup place, damage check.
 - `scripts/e2e/logo-signature.mjs` uploads a logo and a signature photo through the real Settings › Business boxes and
   checks both print on A4, A5, 80 mm and 58 mm (run shop-tour.mjs first; it uses that clothing shop).
 - Barcodes/QR were verified by reading rendered labels with OpenCV; the QR encoder was checked for all 40 versions
@@ -146,7 +167,8 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 
 ## Not built yet
 
-Online store, ads and Google sign-in (need servers), users and roles (passcode), sync between devices, import from Tally, reverse charge, composition scheme, TCS/TDS,
+Online store, ads and Google sign-in (need servers), a website version and live sync between devices (needs a hosted
+server and the owner's decisions: see DESIGN.md §9), WhatsApp linked-device sending, import from Tally, reverse charge, composition scheme, TCS/TDS,
 free quantity, stock per batch, multi-currency, WhatsApp/SMS sending, e-invoice (IRN). Ask the owner before
 starting any of these; sync in particular needs decisions first.
 

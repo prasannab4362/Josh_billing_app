@@ -211,6 +211,15 @@ export interface BillingApi {
   /** Open a backup as a separate business. */
   importBackup(path: string): Promise<Business>
   openBackupFolder(): Promise<void>
+  /** The second place backups are copied to (another drive or a cloud-synced folder), or null. */
+  getBackupMirror(): Promise<string | null>
+  /** Ask for a folder and use it as the second backup place; null if cancelled. */
+  chooseBackupMirror(): Promise<string | null>
+  clearBackupMirror(): Promise<void>
+  /** Make a backup now in the app's folder and in the second place. Returns the second-place file, if any. */
+  backupToMirrorNow(): Promise<{ local: string; mirror: string | null }>
+  /** Check the open business's data file for damage. Returns what was found (empty = healthy). */
+  checkDatabase(): Promise<string[]>
 
   listBin(): Promise<BinEntry[]>
   restoreFromBin(kind: BinKind, id: string): Promise<void>
@@ -380,6 +389,11 @@ const methods: Record<keyof BillingApi, true> = {
   restoreBackup: true,
   importBackup: true,
   openBackupFolder: true,
+  getBackupMirror: true,
+  chooseBackupMirror: true,
+  clearBackupMirror: true,
+  backupToMirrorNow: true,
+  checkDatabase: true,
   listBin: true,
   restoreFromBin: true,
   listAudit: true,

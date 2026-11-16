@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Business, Item, MoneyAccount, Party, PaperSize, PaymentMode, Preferences, TaxRate, Unit } from '@shared/models'
 import { formatINR, percentToBp, toPaise } from '@shared/money'
+import { priceForDocument } from '@shared/tax'
 import { formatQty, toMilli } from '@shared/qty'
 import { todayLocal } from '@shared/fy'
 import {
-  addItem, findForScan, isWholesale, linePrice, posInvoiceInput, posTotals, searchItems, settle, unitFactor,
-  type PosBill, type PosContext, type PosLine
+  addItem, bulkHint, findForScan, isWholesale, linePrice, posInvoiceInput, posTotals, searchItems, settle, unitFactor,
+  taxOf, type PosBill, type PosContext, type PosLine
 } from '@shared/pos'
 import { api, errorMessage } from '../../api'
 import { Banner, Modal } from '../../components/Field'
@@ -18,6 +19,8 @@ const MODES: { value: PaymentMode; label: string }[] = [
 
 interface Tab extends PosBill {
   id: number
+  /** A wholesale bill: every item with a wholesale price uses it. */
+  wholesale: boolean
   /** What was typed in "Amount received"; '' means exactly the total. */
   tenderedText: string
   partyText: string
@@ -26,7 +29,7 @@ interface Tab extends PosBill {
 let nextId = 1
 let nextKey = 1
 const newTab = (stateCode: string): Tab => ({
-  id: nextId++, partyId: null, walkInName: '', date: todayLocal(), placeOfSupply: stateCode, lines: [], charges: [], notes: '',
+  id: nextId++, wholesale: false, partyId: null, walkInName: '', date: todayLocal(), placeOfSupply: stateCode, lines: [], charges: [], notes: '',
   mode: 'cash', accountId: 'cash', tendered: 0, reference: '', tenderedText: '', partyText: ''
 })
 
@@ -80,13 +83,15 @@ export function PosPage({ business }: { business: Business }) {
     inclusive: prefs.pricesIncludeTax,
     registered: prefs.gstRegistered,
     supply: (party?.stateCode || business.stateCode) === business.stateCode ? 'intra' : 'inter',
-    roundOff: prefs.roundOff
-  }, [items, rates, prefs, party?.stateCode])
+    roundOff: prefs.roundOff,
+    wholesaleBill: tab.wholesale
+  }, [items, rates, prefs, party?.stateCode, tab.wholesale])
   const totals = ctx ? posTotals(tab.lines, ctx, tab.charges) : null
   const total = totals?.grandTotal ?? 0
   const tendered = tab.tenderedText.trim() === '' ? total : safePaise(tab.tenderedText)
   const pay = settle(total, tendered)
   const suggestions = searchItems(items, search)
+  const bulk = ctx && !tab.wholesale ? bulkHint(tab.lines, ctx.items) : null
   const unitShort = (id: string | null) => units.find((u) => u.id === id)?.short ?? ''
   const qtyCount = tab.lines.reduce((s, l) => s + l.qty, 0)
 
@@ -109,6 +114,21 @@ export function PosPage({ business }: { business: Business }) {
       if (hit) add(hit)
       else if (search.trim()) setMessage({ kind: 'error', text: `No item matches "${search.trim()}"` })
     }
+  }
+
+  /** Change a line's quantity by a step (never below 1), or to what was typed in the box. */
+  const step = (l: PosLine, by: number) => setLines((list) => list.map((x) => (x.key === l.key ? { ...x, qty: Math.max(1000, x.qty + by) } : x)))
+  /** Apply what was typed in a quantity box; returns the quantity that now stands (the old one if the text was not a number). */
+  const setQtyText = (l: PosLine, text: string): number => {
+    let q = l.qty
+    try {
+      q = toMilli(text)
+    } catch {
+      q = l.qty
+    }
+    if (q <= 0) q = l.qty
+    setLines((list) => list.map((x) => (x.key === l.key ? { ...x, qty: q } : x)))
+    return q
   }
 
   // ---------- Saving ----------
@@ -224,6 +244,12 @@ export function PosPage({ business }: { business: Business }) {
             )}
           </div>
           {message && <Banner kind={message.kind}>{message.text}</Banner>}
+          {bulk && (
+            <div className="notice">
+              {formatQty(bulk.pieces)} pieces across {bulk.items} items: a bulk order.
+              <button className="btn small" onClick={() => update({ wholesale: true })}>Use wholesale prices</button>
+            </div>
+          )}
           <div className="pos-lines">
             <table className="table compact">
               <thead>
@@ -239,8 +265,15 @@ export function PosPage({ business }: { business: Business }) {
                     <tr key={l.key} className={sel ? 'selected' : ''} onClick={() => setSelected(l.key)} onDoubleClick={() => setDialog({ kind: 'line', key: l.key })}>
                       <td className="muted">{n + 1}</td>
                       <td className="mono small-text">{item.barcode || item.code || '—'}</td>
-                      <td>{item.name}{isWholesale(item, l) && l.priceOverride === null && <span className="badge">wholesale</span>}</td>
-                      <td className="amount">{formatQty(l.qty)}</td>
+                      <td>{item.name}{isWholesale(item, l, ctx.wholesaleBill) && l.priceOverride === null && <span className="badge">wholesale</span>}
+                        {wholesaleNote(item, l, ctx) && <div className="muted small-text">{wholesaleNote(item, l, ctx)}</div>}</td>
+                      <td className="amount pos-qty">
+                        <button className="qty-btn" aria-label={`Less ${item.name}`} onClick={(e) => { e.stopPropagation(); step(l, -1000) }}>−</button>
+                        <input key={`${l.key}-${l.qty}`} className="input num" inputMode="decimal" defaultValue={formatQty(l.qty)} aria-label={`Quantity of ${item.name}`}
+                          onClick={(e) => e.stopPropagation()} onFocus={(e) => e.target.select()}
+                          onBlur={(e) => { e.target.value = formatQty(setQtyText(l, e.target.value)) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); searchRef.current?.focus() } }} />
+                        <button className="qty-btn" aria-label={`More ${item.name}`} onClick={(e) => { e.stopPropagation(); step(l, 1000) }}>+</button>
+                      </td>
                       <td>{l.useAltUnit ? unitShort(item.altUnitId) : item.baseUnitShort}</td>
                       <td className="amount">{formatINR(linePrice(item, l, ctx))}</td>
                       <td className="amount">{r.discount ? formatINR(r.discount) : '—'}</td>
@@ -250,15 +283,15 @@ export function PosPage({ business }: { business: Business }) {
                   )
                 })}
                 {!tab.lines.length && (
-                  <tr><td colSpan={9} className="pos-empty">Scan an item's barcode, or type its name above and press Enter.</td></tr>
+                  <tr><td colSpan={9} className="pos-empty"><div className="pos-empty-art"><Icon name="barcode" size={44} /><b>Ready for the next customer</b><span>Scan a barcode, or type an item name above and press Enter.</span></div></td></tr>
                 )}
               </tbody>
             </table>
           </div>
           <div className="pos-keys">
             {([
-              ['F2', 'Change quantity'], ['F3', 'Item discount'], ['F4', 'Remove item'], ['F6', 'Change unit'],
-              ['F8', 'Additional charge'], ['F9', 'Bill discount'], ['F11', 'Customer'], ['F12', 'Remarks']
+              ['F2', 'Quantity'], ['F3', 'Item discount'], ['F4', 'Remove'], ['F6', 'Unit'],
+              ['F8', 'Extra charge'], ['F9', 'Bill discount'], ['F11', 'Customer'], ['F12', 'Remarks']
             ] as [string, string][]).map(([key, label]) => (
               <button key={key} className="btn" onClick={() => keyRef.current?.(new KeyboardEvent('keydown', { key }))}>
                 {label} <span className="kbd">{key}</span>
@@ -284,9 +317,16 @@ export function PosPage({ business }: { business: Business }) {
             ) : null}
           </label>
 
+          <div className="row-flex" style={{ gap: 8 }}>
+            <span className="field-label" style={{ margin: 0 }}>Rates</span>
+            <div className="seg">
+              <button className={tab.wholesale ? '' : 'on'} onClick={() => update({ wholesale: false })}>Retail</button>
+              <button className={tab.wholesale ? 'on' : ''} onClick={() => update({ wholesale: true })} title="Every item with a wholesale price uses it">Wholesale bill</button>
+            </div>
+          </div>
           <div className="pos-total">
             <div className="row-flex"><Icon name="receipt" size={20} /><b>Total {formatINR(total)}</b><span className="spacer" />
-              <button className="link" onClick={() => setBreakup((b) => !b)}>{breakup ? 'Hide' : 'Full'} breakup <span className="kbd">Ctrl+B</span></button>
+              <button className="link-btn" onClick={() => setBreakup((b) => !b)}>{breakup ? 'Hide' : 'Full'} breakup <span className="kbd">Ctrl+B</span></button>
             </div>
             <div className="muted small-text">Items: {tab.lines.length}, quantity: {formatQty(qtyCount)}</div>
             {breakup && totals && (
@@ -364,6 +404,15 @@ export function PosPage({ business }: { business: Business }) {
       )}
     </div>
   )
+}
+
+/** "Wholesale ₹380 from 15 pcs: add 3 more" under an item that has a wholesale price it has not reached. */
+function wholesaleNote(item: Item, l: PosLine, ctx: PosContext): string {
+  if (item.wholesalePrice === null || item.wholesaleMinQty === null || l.priceOverride !== null || isWholesale(item, l, ctx.wholesaleBill)) return ''
+  const need = item.wholesaleMinQty - Math.round((l.qty * unitFactor(item, l)) / 1000)
+  const t = taxOf(item, ctx)
+  const price = priceForDocument(item.wholesalePrice, item.priceIncludesTax, ctx.inclusive, t.bp + t.cess)
+  return `Wholesale ${formatINR(price)} from ${formatQty(item.wholesaleMinQty)} ${item.baseUnitShort}${need > 0 ? `: add ${formatQty(need)} more` : ''}`
 }
 
 function safePaise(s: string): number {

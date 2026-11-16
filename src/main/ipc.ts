@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { fyFor, todayLocal } from '@shared/fy'
 import type { BillingApi } from '@shared/ipc'
-import { schemaVersion } from './db/connection'
+import { databaseProblems, schemaVersion } from './db/connection'
 import type { Session } from './session'
 import { getBusiness, setBusinessImage, updateBusiness } from './services/business'
 import { assignBarcodes, deleteLabelSize, getCodeFormat, getLabelDesign, saveCodeFormat, labelPage, listLabelSizes, saveLabelDesign, saveLabelSize } from './services/labels'
@@ -46,7 +46,7 @@ import { catalogueHtml, gmailLink, mailtoLink, smsLink, whatsappLink, type Catal
 import { invoiceHtml } from '@shared/invoiceHtml'
 import { labelPrice } from './services/labels'
 import { readFileSync, statSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { check, NOT_OWNER } from './access'
 import { isTrustedSender } from './security'
 import { logError } from './log'
@@ -374,6 +374,23 @@ export function createHandlers(session: Session): BillingApi {
       if (r.canceled || !r.filePath) return null
       return session.backupTo(r.filePath)
     },
+    getBackupMirror: async () => session.mirrorDir,
+    chooseBackupMirror: async () => {
+      const options = { title: 'Choose a second place for backups (another drive, or a OneDrive / Google Drive folder)', properties: ['openDirectory' as const, 'createDirectory' as const] }
+      const parent = parentWindow()
+      const r = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
+      if (r.canceled || !r.filePaths[0]) return null
+      session.setMirrorDir(r.filePaths[0])
+      return r.filePaths[0]
+    },
+    clearBackupMirror: async () => session.setMirrorDir(null),
+    backupToMirrorNow: async () => {
+      const dir = session.backupDir()
+      mkdirSync(dir, { recursive: true })
+      const local = await session.backupTo(join(dir, `auto-${todayLocal()}.db`))
+      return { local, mirror: await session.mirrorLatest() }
+    },
+    checkDatabase: async () => databaseProblems(db()),
     listBackups: async () => {
       const list = session.listBackups()
       for (const f of list) approve(f.path)

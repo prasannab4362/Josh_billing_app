@@ -2,6 +2,7 @@
 // product cards. Each template is plain HTML and CSS (shapes and gradients, no pictures), drawn
 // at a fixed pixel size and saved as a PNG by the main process.
 
+import { safeImage } from './safeHtml'
 import { qrSvg } from './qr'
 
 export type PosterCategory = 'greetings' | 'festivals' | 'offers' | 'product'
@@ -140,7 +141,7 @@ export function posterHtml(tpl: PosterTemplate, d: PosterData, size: PosterSize)
   const headSize = Math.round(Math.min(size === 'story' ? 150 : 128, (width - 160) / (longest * 0.62), d.headline.length > 28 ? 96 : 999))
   const centre = product
     ? `<div class="product">
-        ${d.itemPhoto ? `<div class="photo"><img src="${d.itemPhoto}" alt=""></div>` : `<div class="photo none">${esc((d.itemName || '?').slice(0, 1))}</div>`}
+        ${safeImage(d.itemPhoto) ? `<div class="photo"><img src="${safeImage(d.itemPhoto)}" alt=""></div>` : `<div class="photo none">${esc((d.itemName || '?').slice(0, 1))}</div>`}
         <div class="pname">${esc(d.itemName || d.headline || 'Product')}</div>
         <div class="prices">${d.price ? `<span class="price">${rupees(d.price)}</span>` : ''}${d.mrp && d.price && d.mrp > d.price ? `<s>MRP ${rupees(d.mrp)}</s>` : ''}</div>
         ${saving ? `<div class="save">Save ${saving}%</div>` : ''}
@@ -206,7 +207,7 @@ body { font-family: 'Segoe UI', 'Nirmala UI', 'Noto Sans', Arial, sans-serif; co
 .leaves b:nth-child(3) { left: 90px; bottom: 260px; transform: rotate(25deg); background: #2f9e44; } .leaves b:nth-child(4) { right: 90px; bottom: 300px; transform: rotate(160deg); background: #2f9e44; }
 </style></head><body><div class="poster">
 ${artHtml(tpl.art, tpl.accent, tpl.ink)}
-<div class="head">${d.logo ? `<img src="${d.logo}" alt="">` : ''}<div class="name">${esc(d.businessName)}</div></div>
+<div class="head">${safeImage(d.logo) ? `<img src="${safeImage(d.logo)}" alt="">` : ''}<div class="name">${esc(d.businessName)}</div></div>
 <div class="middle">${centre}</div>
 ${d.offer.trim() ? `<div class="offer">${esc(d.offer.trim())}</div>` : ''}
 <div class="foot"><div class="who">${who || '&nbsp;'}</div>${d.phone ? `<div class="phone">☎ ${esc(d.phone)}</div>` : ''}</div>

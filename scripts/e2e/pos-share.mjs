@@ -33,7 +33,7 @@ const shirt = await api(`createItem(${JSON.stringify({ ...base, name: `POS Shirt
 const dhoti = await api(`createItem(${JSON.stringify({ ...base, name: `POS Dhoti ${sfx}`, code: '', salePrice: 35000, wholesalePrice: null, wholesaleMinQty: null })})`)
 
 await click('POS')
-await waitFor('Scan an item')
+await waitFor('Ready for the next customer')
 await sleep(500)
 check((await text()).includes('Counter (POS)'), 'Counter (POS) page opens from the sidebar')
 
@@ -52,7 +52,8 @@ await enterIn('input[aria-label="Scan or search items"]')
 await sleep(300)
 const rows = () => evaluate(`[...document.querySelectorAll('.pos-lines tbody tr')].map((r) => [...r.cells].map((c) => c.innerText.trim()))`)
 let r = await rows()
-check(r.length === 2 && r[0][3] === '2' && r[0][5] === '₹430.00', `scan twice: one line, quantity 2 at ₹430 (${JSON.stringify(r[0])})`)
+const qtyOf = (n) => evaluate(`[...document.querySelectorAll('.pos-lines tbody tr')][${n}].querySelector('input').value`)
+check(r.length === 2 && (await qtyOf(0)) === '2' && r[0][5] === '₹430.00', `scan twice: one line, quantity 2 at ₹430 (${JSON.stringify(r[0])})`)
 
 // F2 on the shirt: 15 pieces → wholesale ₹380.
 await evaluate(`[...document.querySelectorAll('.pos-lines tbody tr')][0].click()`)
@@ -63,7 +64,7 @@ await sleep(200)
 await click('Save', '.modal')
 await sleep(300)
 r = await rows()
-check(r[0][3] === '15' && r[0][5] === '₹380.00' && r[0][2].includes('wholesale'), `15 pieces switch to the wholesale price ₹380 (${r[0][2]} ${r[0][5]})`)
+check((await qtyOf(0)) === '15' && r[0][5] === '₹380.00' && r[0][2].includes('wholesale'), `15 pieces switch to the wholesale price ₹380 (${r[0][2]} ${r[0][5]})`)
 
 // F9 bill discount 10%, F8 packing charge ₹20, F12 remarks.
 await key('F9')
@@ -81,7 +82,7 @@ await waitFor('Remarks')
 await setValue('input[aria-label="Remarks"]', 'Gift pack')
 await click('Save', '.modal')
 await sleep(300)
-await evaluate(`[...document.querySelectorAll('button.link')].find((b) => b.innerText.includes('breakup')).click()`)
+await evaluate(`[...document.querySelectorAll('button.link-btn')].find((b) => b.innerText.includes('breakup')).click()`)
 await sleep(200)
 const totalText = await evaluate(`document.querySelector('.pos-total b').innerText`)
 // 15 × 380 + 1 × 350 = 6050, less 10% = 5445; GST 5% = 272.25; + packing 20 = 5737.25 → 5737.

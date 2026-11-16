@@ -23,6 +23,7 @@ import { Icon, IconTile } from '../../components/Icon'
 import { Banner, DateInput, Field, StateSelect, TextArea, TextInput, Toggle } from '../../components/Field'
 import { paiseText } from '../../forms'
 import { formatQty } from '@shared/qty'
+import { bulkHint, isWholesale } from '@shared/pos'
 import { PartyForm } from '../parties/PartyForm'
 import { BILL_EXTRA_LABELS, DEFAULT_FEATURES, PO_KEYS, TRANSPORT_KEYS, type BillExtra, type FeatureSettings } from '@shared/features'
 import { DATE_KEYS, DEFAULT_ITEM_FIELDS, enabledDetails, type DetailKey, type ItemFieldSettings, type LineDetails } from '@shared/itemFields'
@@ -97,6 +98,8 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
   const [rates, setRates] = useState<TaxRate[]>([])
   const [itemFields, setItemFields] = useState<ItemFieldSettings>(DEFAULT_ITEM_FIELDS)
   const [features, setFeatures] = useState<FeatureSettings>(DEFAULT_FEATURES)
+  // A wholesale bill: every item with a wholesale price uses it, whatever the quantity.
+  const [wholesaleBill, setWholesaleBill] = useState(false)
   const [extra, setExtra] = useState<BillExtra>({})
   useEffect(() => {
     api.getItemFields().then(setItemFields, () => undefined)
@@ -237,12 +240,12 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
     return registered && r ? { bp: r.rateBp, cess: r.cessBp } : { bp: 0, cess: 0 }
   }
 
-  const autoRate = (row: Row, docInclusive: boolean): string => {
+  const autoRate = (row: Row, docInclusive: boolean, wholesaleAll = wholesaleBill): string => {
     const item = row.itemId ? itemById.get(row.itemId) : undefined
     if (!item) return row.rate
     const factor = row.unitId && row.unitId === item.altUnitId && item.altConversion ? item.altConversion : 1000
     const baseQty = toBaseUnits(safe(() => toMilli(row.qty), 0), factor)
-    const wholesale = !purchase && item.wholesalePrice !== null && item.wholesaleMinQty !== null && baseQty >= item.wholesaleMinQty
+    const wholesale = !purchase && isWholesale(item, { qty: safe(() => toMilli(row.qty), 0), useAltUnit: factor !== 1000 }, wholesaleAll)
     const tax = rateBpOf(row.taxRateId)
     // Purchase prices are kept before tax; sale prices follow the item's own setting.
     const price = purchase
@@ -250,6 +253,21 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
       : priceForDocument(wholesale ? item.wholesalePrice! : item.salePrice, item.priceIncludesTax, docInclusive, tax.bp + tax.cess)
     return paiseText(lineAmount(factor, price)) || '0'
   }
+
+  const toggleWholesale = (v: boolean) => {
+    setWholesaleBill(v)
+    setRows((list) => list.map((r) => (r.rateAuto && r.itemId ? { ...r, rate: autoRate(r, inclusive, v) } : r)))
+  }
+  const bulk = useMemo(() => {
+    if (purchase || wholesaleBill) return null
+    const lines = rows
+      .filter((r) => r.itemId)
+      .map((r) => {
+        const item = itemById.get(r.itemId!)
+        return { itemId: r.itemId!, qty: safe(() => toMilli(r.qty), 0), useAltUnit: !!item && !!r.unitId && r.unitId === item.altUnitId, priceOverride: r.rateAuto ? null : 0 }
+      })
+    return bulkHint(lines, itemById)
+  }, [rows, itemById, wholesaleBill, purchase])
 
   const updateRow = (key: number, change: Partial<Row>) =>
     setRows((list) => {
@@ -514,6 +532,15 @@ export function InvoiceEditor({ type, business, invoiceId, from = null, onSaved,
           {dueLabel && (
             <Field label={dueLabel}>
               <DateInput value={dueDate} onChange={(v) => { dueTouched.current = true; setDueDate(v) }} />
+            </Field>
+          )}
+          {!purchase && !info.returnOf && (
+            <Field label="Rates" group hint={bulk ? `${formatQty(bulk.pieces)} pcs across ${bulk.items} items: a bulk order?` : 'Wholesale rate also applies by itself from the minimum quantity of each item'}>
+              <div className="seg">
+                <button type="button" className={wholesaleBill ? '' : 'on'} onClick={() => toggleWholesale(false)}>Retail</button>
+                <button type="button" className={wholesaleBill ? 'on' : ''} onClick={() => toggleWholesale(true)}>Wholesale bill</button>
+              </div>
+              {bulk && !wholesaleBill && <button type="button" className="btn small" style={{ marginTop: 6 }} onClick={() => toggleWholesale(true)}>Use wholesale rates</button>}
             </Field>
           )}
           <Field label="Prices are" group>

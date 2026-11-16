@@ -53,6 +53,10 @@ if (!app.requestSingleInstanceLock()) {
       console.error('Could not reopen the last business', err)
     }
     registerIpc(session)
+    // While the app is open, refresh today's backup (and the second copy) every half hour.
+    setInterval(() => {
+      session?.autoBackup().catch((err) => console.error('Automatic backup failed', err))
+    }, 30 * 60_000).unref()
     createWindow()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -62,6 +66,22 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// One last backup as the app closes, so the day's final bills are in it. Closing waits for it (at most a few seconds).
+let finalBackupDone = false
+app.on('before-quit', (e) => {
+  if (finalBackupDone || !session?.isOpen) return
+  e.preventDefault()
+  const done = () => {
+    finalBackupDone = true
+    app.quit()
+  }
+  const timer = setTimeout(done, 5000)
+  session.autoBackup(undefined, true).then(
+    () => (clearTimeout(timer), done()),
+    (err) => (console.error('Backup on close failed', err), clearTimeout(timer), done())
+  )
 })
 
 app.on('will-quit', () => {
