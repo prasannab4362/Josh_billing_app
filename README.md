@@ -1,4 +1,4 @@
-# Josh Billing App
+# Josh Books
 
 An offline GST billing, inventory and accounts app for Indian small businesses. It runs on Windows as a desktop app
 (Electron), and each business is kept in its own SQLite file on the computer, with automatic daily backups.
@@ -44,8 +44,8 @@ npm run dist:win   # Windows x64 installer in dist/
 
 ## Windows test installer
 
-Download `Josh-Billing-Setup-0.1.0-x64.exe` from the repository's GitHub Releases page.
-Copy it to another Windows x64 computer, run the installer and open the Josh Billing desktop shortcut.
+Download `Josh-Books-Setup-0.1.0-x64.exe` from the repository's GitHub Releases page.
+Copy it to another Windows x64 computer, run the installer and open the Josh Books desktop shortcut.
 The installer includes Electron and SQLite, so the other computer can run the app offline without Node.js.
 This test build is unsigned. Windows may show an unknown-publisher warning.
 The security findings and checks still pending are recorded in `docs/TESTING-AND-SECURITY.md`.

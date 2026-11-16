@@ -1,5 +1,9 @@
 # Changes
 
+## Name and icon
+
+- The app is now called **Josh Books**, with its own icon (a receipt with the rupee sign) on the window, taskbar, shortcuts and installer. Shops already saved on a computer are found as before.
+
 ## 0.3.0 (16 November 2026)
 
 New

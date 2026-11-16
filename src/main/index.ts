@@ -7,6 +7,9 @@ import { protectOutputPipes } from './stdio'
 
 protectOutputPipes()
 
+// The data folder keeps its first name, so a renamed app still finds every shop already saved on this computer.
+if (app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Josh Billing'))
+
 let session: Session | null = null
 
 function createWindow(): void {
@@ -15,7 +18,8 @@ function createWindow(): void {
     height: 800,
     minWidth: 960,
     minHeight: 600,
-    title: 'Josh Billing',
+    title: 'Josh Books',
+    icon: join(app.getAppPath(), 'build/icon-512.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

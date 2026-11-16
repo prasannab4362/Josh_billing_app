@@ -14,22 +14,25 @@
   },
   "build": {
     "appId": "com.joshbilling.desktop",
-    "productName": "Josh Billing",
+    "productName": "Josh Books",
     "npmRebuild": false,
     "directories": {
       "output": "dist"
     },
     "files": [
       "out/**/*",
+      "build/icon-512.png",
       "package.json"
     ],
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*"
     ],
+    "icon": "build/icon.ico",
     "win": {
       "target": "nsis",
-      "artifactName": "Josh-Billing-Setup-${version}-${arch}.${ext}",
-      "signAndEditExecutable": false
+      "icon": "build/icon.ico",
+      "artifactName": "Josh-Books-Setup-${version}-${arch}.${ext}",
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -37,7 +40,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Josh Billing",
+      "shortcutName": "Josh Books",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "deleteAppDataOnUninstall": false
     }
   },

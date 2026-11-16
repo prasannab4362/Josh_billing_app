@@ -5,7 +5,7 @@ must keep, and how to check your work. `DESIGN.md` has the full data model and t
 
 ## What this is
 
-**Josh Billing App**: an offline desktop app for Indian small businesses: GST invoices, purchases, stock, payments,
+**Josh Books**: an offline desktop app for Indian small businesses: GST invoices, purchases, stock, payments,
 cash and bank, expenses, reports and GST returns. It is our own design. It was inspired by how apps like Vyapar
 work, but **no code, screens, names or artwork are copied**. Keep it that way: build features from how they should
 work, in this app's own look.

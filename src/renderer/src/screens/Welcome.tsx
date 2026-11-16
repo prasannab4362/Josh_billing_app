@@ -46,7 +46,7 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
     <div className="center-page">
       <div className="welcome">
         <div className="welcome-mark"><span className="brand-mark">J</span></div>
-        <h1>Josh Billing</h1>
+        <h1>Josh Books</h1>
         <p className="muted">GST billing, stock and accounts — works fully offline, your data stays on this computer.</p>
         {error && <Banner kind="error">{error}</Banner>}
 

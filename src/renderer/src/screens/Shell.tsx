@@ -190,9 +190,14 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
     <div className={collapsed ? 'shell collapsed' : 'shell'}>
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">J</span>
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+              <path d="M9.5 8h5M9.5 11h5M10 8c3 0 3 3 0 3l4 4" />
+            </svg>
+          </span>
           <span className="brand-text">
-            <b>Josh Billing</b>
+            <b>Josh Books</b>
             <small>GST · STOCK · ACCOUNTS</small>
           </span>
         </div>
