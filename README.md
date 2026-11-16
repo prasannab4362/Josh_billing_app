@@ -5,6 +5,11 @@ An offline GST billing, inventory and accounts app for Indian small businesses. 
 
 ## Features
 
+- **Counter billing (POS):** scan or search items, wholesale price from the minimum quantity, function keys for
+  quantity, discount, unit, charges and remarks, several bills at once, cash/UPI/card with change to return, save
+  and print the 80/58 mm bill in one key (Ctrl+P).
+- **Sharing a bill:** WhatsApp, Gmail, the mail app or a text message open with the message ready and the PDF saved
+  to attach; download the PDF, or print it as a thermal bill or an A4/A5 invoice in one click.
 - **Sales and purchases:** invoices, estimates, sale/purchase orders, delivery challans, credit and debit notes,
   conversions between them, payments in and out, cash sales.
 - **GST:** CGST/SGST/IGST and cess, place of supply, HSN/SAC, tax-inclusive or exclusive prices, GSTR-1 (with portal

@@ -11,7 +11,7 @@ import { UserError } from './util'
 const PUBLIC = new Set<string>(PUBLIC_METHODS)
 const STAFF = new Set<string>(STAFF_METHODS)
 /** Calls whose first argument is a bill type. */
-const BILL_TYPE_FIRST = new Set(['listBills', 'getBill', 'nextBillNumber', 'saveBill', 'getBillPrint', 'exportBillPdf', 'printBill', 'shareBillOnWhatsApp'])
+const BILL_TYPE_FIRST = new Set(['listBills', 'getBill', 'nextBillNumber', 'saveBill', 'getBillPrint', 'exportBillPdf', 'printBill', 'shareBillOnWhatsApp', 'shareBill'])
 
 export const NOT_OWNER = 'Only the owner can do this. Ask the owner to sign in.'
 

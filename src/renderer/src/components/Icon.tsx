@@ -75,6 +75,8 @@ const ICONS = {
   trash: <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
   edit: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
   chat: <path d="M4.5 19.5 6 15.6A8 8 0 1 1 8.4 18zM9 11h.01M12 11h.01M15 11h.01" />,
+  mail: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
+  sms: <path d="M4 5h16v11H9l-5 4zM8 9h8M8 12h5" />,
   tag: (
     <>
       <path d="M3 12.2V4a1 1 0 0 1 1-1h8.2L21 11.8 12.8 20z" />

@@ -9,8 +9,8 @@ import { Icon, PageTitle, type IconName } from '../../components/Icon'
 import { PERIODS, periodRange, type PeriodKey } from '../../periods'
 import { PaymentForm } from '../payments/PaymentForm'
 import { InvoiceEditor } from './InvoiceEditor'
-import { WhatsAppModal } from '../../components/WhatsAppModal'
-import { billMessage } from '@shared/share'
+import { ShareModal } from '../../components/ShareModal'
+import { billMessage, billSms, billSubject, type ShareChannel } from '@shared/share'
 import type { InvoicePrintData } from '@shared/invoiceHtml'
 
 const STATUS_LABEL: Record<InvoiceStatus, string> = {
@@ -277,7 +277,8 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
   const [paying, setPaying] = useState(false)
   const [version, setVersion] = useState(0)
   const [printData, setPrintData] = useState<InvoicePrintData | null>(null)
-  const [sharing, setSharing] = useState(false)
+  const [sharing, setSharing] = useState<ShareChannel | null>(null)
+  const [partyEmail, setPartyEmail] = useState('')
   // Paper for this bill: null = the business's usual paper (Settings › Preferences).
   const [paper, setPaper] = useState<PaperSize | null>(null)
 
@@ -286,6 +287,7 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
       (data) => {
         setPrintData(data)
         setBill(data.invoice)
+        if (data.invoice.partyId) api.getParty(data.invoice.partyId).then((p) => setPartyEmail(p.email), () => setPartyEmail(''))
         setHtml(invoiceHtml(data))
       },
       (e) => setNote({ kind: 'error', text: errorMessage(e) })
@@ -303,12 +305,17 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
     }
   }
 
-  const pdf = () =>
+  const print = () => run(async () => void (await api.printBill(type, id, paper ?? undefined)))
+  // One-click prints on the counter printer and on a sheet, whatever the preview shows.
+  const usual = printData?.paper ?? 'A4'
+  const thermalPaper: PaperSize = usual === 'thermal58' ? 'thermal58' : 'thermal80'
+  const sheetPaper: PaperSize = usual === 'A5' ? 'A5' : 'A4'
+  const printOn = (p: PaperSize) => run(async () => void (await api.printBill(type, id, p)))
+  const pdfOn = (p: PaperSize) =>
     run(async () => {
-      const path = await api.exportBillPdf(type, id, paper ?? undefined)
+      const path = await api.exportBillPdf(type, id, p)
       if (path) setNote({ kind: 'success', text: `PDF saved to ${path}` })
     })
-  const print = () => run(async () => void (await api.printBill(type, id, paper ?? undefined)))
   const remove = () =>
     run(async () => {
       const effect = info.posts ? ' Stock and the party balance will be restored.' : ''
@@ -340,8 +347,6 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
         )}
         <button className="btn" onClick={onEdit} disabled={busy}><Icon name="edit" size={16} />Edit</button>
         <button className="btn danger" onClick={remove} disabled={busy}><Icon name="trash" size={17} />Delete</button>
-        <button className="btn" onClick={pdf} disabled={busy}><Icon name="file" size={17} />PDF</button>
-        {bill && <button className="btn" onClick={() => setSharing(true)} disabled={busy}><Icon name="chat" size={17} />WhatsApp</button>}
         <button className="btn" onClick={print} disabled={busy}><Icon name="printer" size={17} />Print</button>
         <button className="btn primary" onClick={onNew}><Icon name="plus" size={17} />{info.newLabel.replace(/^\+ /, '')}</button>
       </div>
@@ -370,14 +375,15 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
         </div>
       )}
       {sharing && bill && printData && (
-        <WhatsAppModal
-          title={`Send ${info.noun.toLowerCase()} on WhatsApp`}
-          phone={bill.party.phone}
-          initial={billMessage(type, bill, printData.business, printData.bank)}
-          onClose={() => setSharing(false)}
-          onSend={async (text) => {
-            const path = await api.shareBillOnWhatsApp(type, id, text)
-            return `WhatsApp opened. The PDF is saved at ${path} (its folder is open): drag it into the chat to attach it.`
+        <ShareModal
+          channel={sharing}
+          to={sharing === 'gmail' || sharing === 'email' ? partyEmail : bill.party.phone}
+          subject={billSubject(type, bill, printData.business)}
+          text={sharing === 'sms' ? billSms(type, bill, printData.business) : billMessage(type, bill, printData.business, printData.bank)}
+          onClose={() => setSharing(null)}
+          onSend={async (r) => {
+            const path = await api.shareBill(type, id, { channel: sharing, ...r, paper: paper ?? undefined })
+            return path ? `Opened. The PDF is saved at ${path} (its folder is open) to attach.` : 'Opened with the text message.'
           }}
         />
       )}
@@ -408,7 +414,27 @@ function InvoiceView({ type, id, message, onBack, onEdit, onNew, onMake, onOpenL
           <span className="muted small-text">{(paper ?? printData.paper).startsWith('thermal') ? 'Small bill for the counter printer' : 'Full GST invoice on a sheet'}</span>
         </div>
       )}
-      {html && <iframe className={printData?.paper.startsWith('thermal') ? 'invoice-preview thermal' : 'invoice-preview'} title="Preview" sandbox="" srcDoc={html} />}
+      <div className="bill-view-body">
+        {html && <iframe className={printData?.paper.startsWith('thermal') ? 'invoice-preview thermal' : 'invoice-preview'} title="Preview" sandbox="" srcDoc={html} />}
+        {bill && (
+          <aside className="share-panel" aria-label="Share and print">
+            <div className="share-title">Share</div>
+            <div className="share-grid">
+              <button onClick={() => setSharing('whatsapp')} disabled={busy}><Icon name="chat" size={22} />WhatsApp</button>
+              <button onClick={() => setSharing('gmail')} disabled={busy}><Icon name="mail" size={22} />Gmail</button>
+              <button onClick={() => setSharing('email')} disabled={busy}><Icon name="mail" size={22} />Email app</button>
+              <button onClick={() => setSharing('sms')} disabled={busy}><Icon name="sms" size={22} />Text message</button>
+            </div>
+            <div className="share-title">Save and print</div>
+            <div className="share-grid">
+              <button onClick={() => pdfOn(paper ?? usual)} disabled={busy}><Icon name="download" size={22} />Download PDF</button>
+              <button onClick={() => printOn(thermalPaper)} disabled={busy}><Icon name="receipt" size={22} />Print bill<small>{thermalPaper === 'thermal58' ? '58 mm' : '80 mm'} thermal</small></button>
+              <button onClick={() => printOn(sheetPaper)} disabled={busy}><Icon name="printer" size={22} />Print invoice<small>{sheetPaper} sheet</small></button>
+            </div>
+            <p className="muted small-text">Nothing is sent by this app: the chosen app opens with the message ready, and you press Send.</p>
+          </aside>
+        )}
+      </div>
     </div>
   )
 }

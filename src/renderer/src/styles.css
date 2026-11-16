@@ -939,3 +939,41 @@ tr.row-bad td { background: var(--danger-soft); }
 .lthumb .t-dates i + i { border-left: 1px solid #111; }
 .code-format .field { margin: 0; }
 .code-format .code-part { width: 110px; }
+
+/* Bill view: preview with the share and print panel beside it */
+.bill-view-body { display: flex; gap: 18px; align-items: flex-start; }
+.bill-view-body .invoice-preview { flex: 1 1 auto; min-width: 0; }
+.share-panel { flex: 0 0 250px; position: sticky; top: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.share-title { font-weight: 700; color: var(--text); }
+.share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.share-grid button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer; font: inherit; font-size: 13px; }
+.share-grid button:hover { border-color: var(--accent); color: var(--accent-text); }
+.share-grid button small { color: var(--muted); font-size: 11px; }
+.share-grid button:disabled { opacity: .5; cursor: default; }
+@media (max-width: 1100px) { .bill-view-body { flex-direction: column; } .share-panel { position: static; flex-basis: auto; width: 100%; } }
+
+/* Counter billing (POS) */
+.pos { display: flex; flex-direction: column; gap: 10px; }
+.pos-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pos-tab { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 12px; border: 1px solid var(--border); border-radius: 10px 10px 0 0; background: var(--bg); cursor: pointer; color: var(--muted); }
+.pos-tab.on { background: var(--panel); color: var(--text); border-color: var(--accent); font-weight: 600; }
+.pos-body { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+.pos-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pos-search { position: relative; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 2px solid var(--accent); border-radius: 12px; padding: 4px 10px; color: var(--accent-text); }
+.pos-search .input { border: 0; box-shadow: none; font-size: 16px; background: transparent; }
+.pos-suggest { position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px; z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+.pos-suggest button { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 12px; border: 0; background: transparent; color: var(--text); cursor: pointer; font: inherit; text-align: left; }
+.pos-suggest button.on, .pos-suggest button:hover { background: var(--accent-soft); }
+.pos-lines { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; min-height: 360px; max-height: calc(100vh - 330px); overflow: auto; }
+.pos-lines tbody tr { cursor: pointer; }
+.pos-empty { text-align: center; color: var(--muted); padding: 60px 10px !important; }
+.pos-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pos-keys .btn { justify-content: center; }
+.pos-right { position: sticky; top: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pos-total { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+.pos-total b { font-size: 18px; }
+.pos-change { display: flex; justify-content: space-between; align-items: baseline; font-size: 16px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.pos-change b { font-size: 22px; }
+.pos-save { justify-content: center; padding: 12px; font-size: 15px; }
+button.link { border: 0; background: none; color: var(--accent-text); cursor: pointer; font: inherit; padding: 0; }
+@media (max-width: 1100px) { .pos-body { grid-template-columns: 1fr; } .pos-right { position: static; } .pos-keys { grid-template-columns: repeat(2, 1fr); } }

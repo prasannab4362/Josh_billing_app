@@ -10,7 +10,7 @@ import type { PrintSettings } from './printSettings'
 import type { ItemFieldSettings } from './itemFields'
 import type { FeatureSettings } from './features'
 import type { PosterSize } from './posters'
-import type { CatalogueItem, CatalogueOptions } from './share'
+import type { CatalogueItem, CatalogueOptions, ShareChannel } from './share'
 import type { ImportKind, ImportPreview, ImportResult, ItemBulkChange } from './imports'
 import type { CustomSize, LabelExtra, LabelOptions, SavedLabelSize } from './labels'
 import type { AuditEntry, AuditFilter, BackupFile, BackupInfo, BinEntry, BinKind } from './data'
@@ -122,6 +122,12 @@ export interface BillingApi {
   saveCatalogue(itemIds: string[], options: CatalogueOptions): Promise<string | null>
   /** Save the bill's PDF to Documents\Billing App\Shared, show it, and open WhatsApp with the message. */
   shareBillOnWhatsApp(type: BillType, id: string, text: string): Promise<string>
+  /**
+   * Share a bill: saves its PDF (on the chosen paper) to Documents\Billing App\Shared and shows it, then opens
+   * WhatsApp, Gmail, the mail app or a text message with the text filled in. Text messages carry no PDF.
+   * Returns the PDF path ('' for a text message).
+   */
+  shareBill(type: BillType, id: string, req: { channel: ShareChannel; text: string; to: string; subject: string; paper?: PaperSize }): Promise<string>
   /** Open WhatsApp with a message, to a phone number ('' = choose in WhatsApp). */
   openWhatsApp(phone: string, text: string): Promise<void>
   /** Open Google Business Profile (or the business's review link) in the browser. */
@@ -315,6 +321,7 @@ const methods: Record<keyof BillingApi, true> = {
   catalogueItems: true,
   saveCatalogue: true,
   shareBillOnWhatsApp: true,
+  shareBill: true,
   openWhatsApp: true,
   openWeb: true,
   getFeatures: true,

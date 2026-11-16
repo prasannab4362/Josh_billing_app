@@ -8,7 +8,7 @@ import { Banner } from '../components/Field'
 import { EmptyState, Icon, IconTile, type IconName, type Tone } from '../components/Icon'
 
 export type Page =
-  | 'Dashboard' | 'Parties' | 'Items' | 'Sale' | 'Payments' | 'Purchase' | 'Cash & Bank' | 'Expenses' | 'Reports' | 'Grow' | 'Settings'
+  | 'Dashboard' | 'Parties' | 'Items' | 'Sale' | 'POS' | 'Payments' | 'Purchase' | 'Cash & Bank' | 'Expenses' | 'Reports' | 'Grow' | 'Settings'
 
 export type Go = (
   page: Page,

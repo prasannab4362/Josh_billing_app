@@ -13,6 +13,7 @@ import { PaymentsPage } from './payments/PaymentsPage'
 import { CashBankPage } from './cashbank/CashBankPage'
 import { SettingsPage } from './settings/SettingsPage'
 import { GrowPage } from './grow/GrowPage'
+import { PosPage } from './pos/PosPage'
 
 interface NavEntry {
   page: Page
@@ -27,6 +28,7 @@ const NAV: { group: string; items: NavEntry[] }[] = [
     group: 'Transactions',
     items: [
       { page: 'Sale', icon: 'receipt', kbd: 'Alt S' },
+      { page: 'POS', icon: 'store', kbd: 'Alt B' },
       { page: 'Purchase', icon: 'cart', kbd: 'Alt P' },
       { page: 'Payments', icon: 'wallet', kbd: 'Alt I' },
       { page: 'Expenses', icon: 'cash', kbd: 'Alt E' }
@@ -54,6 +56,7 @@ const NAV: { group: string; items: NavEntry[] }[] = [
 const TITLES: Record<Page, [string, string]> = {
   Dashboard: ['Dashboard', 'How the business is doing today'],
   Sale: ['Sale', 'Invoices, estimates, orders, challans and returns'],
+  POS: ['Counter (POS)', 'Fast billing at the counter: scan, take payment, print'],
   Purchase: ['Purchase', 'Bills from suppliers, purchase orders and returns'],
   Payments: ['Payments', 'Money received from customers and paid to suppliers'],
   Expenses: ['Expenses', 'Rent, salary, bills and other running costs'],
@@ -130,6 +133,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
       if (!e.altKey || e.ctrlKey || e.metaKey) return
       const key = e.key.toLowerCase()
       if (key === 's') go('Sale', { new: true, type: 'SALE_INVOICE' })
+      else if (key === 'b') go('POS')
       else if (key === 'p') go('Purchase', { new: true, type: 'PURCHASE_BILL' })
       else if (key === 'i') go('Payments', { new: true, direction: 'in' })
       else if (key === 'e') go('Expenses', { new: true })
@@ -314,6 +318,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
           {page === 'Parties' && <PartiesPage key={k('parties')} openId={target.open?.id ?? null} startNew={!!target.open?.new} />}
           {page === 'Items' && <ItemsPage key={k('items')} startNew={!!target.open?.new} />}
           {page === 'Sale' && <BillsPage key={k('sale')} business={business} side="sale" open={target.open} />}
+          {page === 'POS' && <PosPage key={k('pos')} business={business} />}
           {page === 'Purchase' && <BillsPage key={k('purchase')} business={business} side="purchase" open={target.open} />}
           {page === 'Expenses' && <ExpensesPage key={k('expenses')} business={business} startNew={!!target.open?.new} />}
           {page === 'Payments' && (

@@ -42,7 +42,7 @@ import { getFeatures, getItemFields, getPrintSettings, samplePrintHtml, saveFeat
 import { bulkUpdateItems, commitImport, exportSheets, previewImport, templateSheets } from './services/imports'
 import { readSpreadsheet, writeXlsx } from './xlsx'
 import { copyPoster, htmlToPdf, keepForSharing, openSafe, savePdfAs, savePoster } from './share'
-import { catalogueHtml, whatsappLink, type CatalogueItem } from '@shared/share'
+import { catalogueHtml, gmailLink, mailtoLink, smsLink, whatsappLink, type CatalogueItem } from '@shared/share'
 import { invoiceHtml } from '@shared/invoiceHtml'
 import { labelPrice } from './services/labels'
 import { readFileSync, statSync } from 'node:fs'
@@ -262,6 +262,24 @@ export function createHandlers(session: Session): BillingApi {
       const inv = data.invoice
       const path = keepForSharing(await htmlToPdf(invoiceHtml(data)), `${inv.number || type} ${inv.party.name}`)
       await openSafe(whatsappLink(inv.party.phone, text))
+      return path
+    },
+    shareBill: async (type, id, req) => {
+      const data = printData(type, id, req.paper)
+      const inv = data.invoice
+      const text = String(req.text ?? '').slice(0, 4000)
+      const subject = String(req.subject ?? '').slice(0, 200)
+      let path = ''
+      if (req.channel !== 'sms') path = keepForSharing(await htmlToPdf(invoiceHtml(data)), `${inv.number || type} ${inv.party.name}`)
+      const to = String(req.to ?? '')
+      const url =
+        req.channel === 'whatsapp' ? whatsappLink(to || inv.party.phone, text)
+        : req.channel === 'gmail' ? gmailLink(to, subject, text)
+        : req.channel === 'email' ? mailtoLink(to, subject, text)
+        : req.channel === 'sms' ? smsLink(to || inv.party.phone, text)
+        : ''
+      if (!url) throw new UserError('Choose how to share')
+      await openSafe(url)
       return path
     },
     openWhatsApp: async (phone, text) => openSafe(whatsappLink(phone, text)),

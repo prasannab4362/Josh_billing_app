@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { completeFeatures } from './features'
 import type { Invoice, MoneyAccount } from './models'
 import { POSTER_SIZES, POSTER_TEMPLATES, posterFileName, posterHtml, type PosterData } from './posters'
-import { billMessage, catalogueHtml, DEFAULT_CATALOGUE, googleProfileFields, reminderMessage, whatsappLink, whatsappNumber } from './share'
+import { billMessage, billSms, billSubject, gmailLink, isSafeExternalUrl, mailtoLink, smsLink, catalogueHtml, DEFAULT_CATALOGUE, googleProfileFields, reminderMessage, whatsappLink, whatsappNumber } from './share'
 
 const data: PosterData = { businessName: 'Kumar <& Sons>', logo: '', phone: '9000012345', contact: 'Ravi', address: 'Main Road', headline: 'Happy Diwali', subline: 'Joy', offer: 'Flat 10% off' }
 const bank: MoneyAccount = { id: 'b', kind: 'bank', name: 'SBI', bankName: 'SBI', accountNo: '123', ifsc: 'SBIN0001', upiId: 'shop@sbi', isDefaultForPrint: true }
@@ -95,3 +95,36 @@ describe('WhatsApp', () => {
     expect(f.find((x) => x.label === 'Address')?.value).toBe('1 Main Rd, Madurai, 625001')
   })
 })
+
+describe('email and text messages', () => {
+  const inv = { number: 'INV-7', date: '2026-11-12', dueDate: '', grandTotal: 233_400, paidAmount: 50_000, balanceDue: 183_400, party: { name: 'Lakshmi Stores' } } as unknown as Invoice
+
+  it('write a subject and a short text', () => {
+    expect(billSubject('SALE_INVOICE', inv, { name: 'Shop' })).toBe('Invoice INV-7 from Shop')
+    expect(billSms('SALE_INVOICE', inv, { name: 'Shop', phone: '' })).toBe('Shop: Invoice INV-7 dated 12-11-2026, ₹2,334.00. Balance due ₹1,834.00. Thank you!')
+  })
+
+  it('make Gmail, mail-app and SMS links the app is allowed to open', () => {
+    const g = gmailLink('ravi@example.com', 'Invoice INV-7', 'Hi & bye')
+    expect(g).toBe('https://mail.google.com/mail/?view=cm&fs=1&to=ravi%40example.com&su=Invoice%20INV-7&body=Hi%20%26%20bye')
+    expect(gmailLink('not an email', 's', 'b')).toContain('to=&')
+    const m = mailtoLink('ravi@example.com', 'Invoice', 'Line 1\nLine 2')
+    expect(m).toBe('mailto:ravi@example.com?subject=Invoice&body=Line%201%0ALine%202')
+    const t = smsLink('98765 43210', 'Hello')
+    expect(t).toBe('sms:+919876543210?body=Hello')
+    for (const u of [g, m, t, mailtoLink('', 's', 'b'), smsLink('', 'x')]) expect(isSafeExternalUrl(u), u).toBe(true)
+  })
+
+  it('refuse other mail and text links', () => {
+    for (const u of [
+      'mailto:a@b.com?subject=x&bcc=spy@evil.com',
+      'mailto:a@b.com,c@d.com?subject=x',
+      'sms:+12025550123?body=x',
+      'sms:+919876543210?body=x&other=1',
+      'https://mail.google.com/mail/u/0/#inbox',
+      'https://mail.google.com/mail/?view=cm&to=a@b.com&attach=x',
+      'http://mail.google.com/mail/?view=cm'
+    ]) expect(isSafeExternalUrl(u), u).toBe(false)
+  })
+})
+

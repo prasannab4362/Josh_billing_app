@@ -119,6 +119,40 @@ export function billMessage(type: BillType, inv: Invoice, b: Pick<Business, 'nam
   return lines.join('\n')
 }
 
+export type ShareChannel = 'whatsapp' | 'gmail' | 'email' | 'sms'
+export const SHARE_CHANNELS: Record<ShareChannel, string> = { whatsapp: 'WhatsApp', gmail: 'Gmail', email: 'Email app', sms: 'Text message' }
+
+/** Subject line for a bill sent by email. */
+export function billSubject(type: BillType, inv: Invoice, b: Pick<Business, 'name'>): string {
+  return `${BILL_INFO[type].noun} ${inv.number} from ${b.name}`.replace(/\s+/g, ' ').trim()
+}
+
+/** A short text message for a bill (no attachment possible by SMS). */
+export function billSms(type: BillType, inv: Invoice, b: Pick<Business, 'name' | 'phone'>): string {
+  const info = BILL_INFO[type]
+  const due = info.posts && !info.returnOf && inv.balanceDue > 0 ? ` Balance due ${formatINR(inv.balanceDue)}.` : ''
+  return `${b.name}: ${info.noun} ${inv.number} dated ${fmtDate(inv.date)}, ${formatINR(inv.grandTotal)}.${due} Thank you!`
+}
+
+const EMAIL = /^[^\s@,;?&]+@[^\s@,;?&]+\.[^\s@,;?&]+$/
+
+/** Gmail's compose page in the browser, with the message filled in. */
+export function gmailLink(to: string, subject: string, body: string): string {
+  const q = new URLSearchParams({ view: 'cm', fs: '1', to: EMAIL.test(to.trim()) ? to.trim() : '', su: subject, body })
+  return `https://mail.google.com/mail/?${q.toString().replace(/\+/g, '%20')}`
+}
+
+/** The computer's own mail app (Outlook, Windows Mail…), with the message filled in. */
+export function mailtoLink(to: string, subject: string, body: string): string {
+  return `mailto:${EMAIL.test(to.trim()) ? encodeURIComponent(to.trim()).replace('%40', '@') : ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+}
+
+/** A text message to an Indian mobile; opens the phone-linking app (e.g. Phone Link) if the computer has one. */
+export function smsLink(phone: string, text: string): string {
+  const n = whatsappNumber(phone)
+  return `sms:${n ? `+${n}` : ''}?body=${encodeURIComponent(text)}`
+}
+
 /** A friendly reminder of what a party owes (or, for a supplier, what we owe is not sent). */
 export function reminderMessage(p: Pick<Party, 'name' | 'balance'>, b: Pick<Business, 'name' | 'phone'>, bank: MoneyAccount | null): string {
   const lines = [`Dear ${p.name},`, '', `This is a gentle reminder that ${formatINR(p.balance)} is due to ${b.name}.`]
@@ -153,7 +187,16 @@ export function isSafeExternalUrl(raw: string): boolean {
   } catch {
     return false
   }
+  // Mail and text messages: only an address/number and the subject and body the app writes.
+  if (u.protocol === 'mailto:') {
+    const to = decodeURIComponent(u.pathname)
+    return (to === '' || EMAIL.test(to)) && [...u.searchParams.keys()].every((k) => k === 'subject' || k === 'body')
+  }
+  if (u.protocol === 'sms:') return /^(\+91[6-9]\d{9})?$/.test(u.pathname) && [...u.searchParams.keys()].every((k) => k === 'body')
   if (u.protocol !== 'https:' || u.username || u.password || u.port) return false
+  if (u.hostname === 'mail.google.com') {
+    return u.pathname === '/mail/' && u.searchParams.get('view') === 'cm' && [...u.searchParams.keys()].every((k) => ['view', 'fs', 'to', 'su', 'body'].includes(k))
+  }
   const path = u.pathname
   switch (u.hostname) {
     case 'wa.me': return /^\/\d{0,15}$/.test(path)

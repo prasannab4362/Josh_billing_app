@@ -56,7 +56,7 @@ export const STAFF_METHODS = [
   'createParty', 'updateParty', 'listItems', 'getItem', 'createItem', 'updateItem', 'addItemSizes', 'listItemCategories', 'listStockMovements',
   'getItemImage', 'generateBarcode', 'assignBarcodes', 'previewLabels', 'printLabels', 'saveLabelsPdf', 'listLabelSizes',
   'getLabelDesign', 'saveLabelDesign', 'getCodeFormat', 'getFeatures', 'getItemFields', 'getPrintSettings', 'listAccounts', 'stockSummary',
-  'listBills', 'getBill', 'nextBillNumber', 'saveBill', 'getBillPrint', 'exportBillPdf', 'printBill', 'shareBillOnWhatsApp',
+  'listBills', 'getBill', 'nextBillNumber', 'saveBill', 'getBillPrint', 'exportBillPdf', 'printBill', 'shareBillOnWhatsApp', 'shareBill',
   'openWhatsApp', 'listPayments', 'getPayment', 'nextPaymentNumber', 'openDocuments', 'savePayment', 'partyStatement',
   'catalogueItems', 'saveCatalogue', 'savePoster', 'copyPoster', 'changeMyPassword'
 ] as const
@@ -65,7 +65,7 @@ export const STAFF_METHODS = [
 export const STAFF_BILL_TYPES: BillType[] = ['SALE_INVOICE', 'ESTIMATE', 'SALE_ORDER', 'DELIVERY_CHALLAN']
 
 /** The app's pages staff see. */
-export const STAFF_PAGES = ['Sale', 'Payments', 'Parties', 'Items', 'Grow', 'Settings'] as const
+export const STAFF_PAGES = ['Sale', 'POS', 'Payments', 'Parties', 'Items', 'Grow', 'Settings'] as const
 
 export const MIN_PASSWORD = 8
 

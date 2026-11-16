@@ -84,8 +84,10 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
   than the business default (the `paper` argument of `getBillPrint` / `printBill` / `exportBillPdf`, shown as the
   "Print as" switch: bill 80/58 mm or invoice A4/A5).
 - **Nothing is sent from the app.** WhatsApp opens through `https://wa.me/` links with the text filled in; the user
-  presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Google Business and Google review links; keep that
-  list short. Posters and catalogues are made on the computer; nothing is uploaded.
+  presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Gmail's compose page, `mailto:` (address, subject, body only),
+  `sms:` (an Indian mobile and body only), Google Business and Google review links (`isSafeExternalUrl` in
+  `shared/share.ts`); keep that list short. Sending automatically through a linked WhatsApp is not done: WhatsApp's
+  terms forbid automating it and it can get the number banned. Posters and catalogues are made on the computer; nothing is uploaded.
 - **Imports are two-step:** `previewImport` checks every row and saves nothing; `commitImport` saves the good rows in
   one transaction. On an update, a blank cell keeps the saved value.
 - **Look and feel:** colours come from the CSS variables at the top of `styles.css`, which have a light and a dark
@@ -99,7 +101,7 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 276 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 283 tests at the time of writing. Add tests for every rule you add, including the refusals.
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
 - `scripts/e2e/business-check.mjs` sets up one test business per trade and checks its everyday bills (totals, GST
   split, stock, payments, PDF). Run it after changes to billing, tax, units, stock or printing, and update the
@@ -113,6 +115,8 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - `scripts/e2e/year-codes.mjs` checks year-letter numbering with sizes (`EE-00001~1`, `~2`…; `CodeFormat` kind `yearly`):
   sets it in the labels window, uses **Add sizes** (`addItemSizes` in `services/items.ts`), prints and reads back the tags,
   and bills by scanning. Year letters move with the accounting year (`currentFy` in `services/labels.ts`).
+- `scripts/e2e/pos-share.mjs` checks the POS (scan, wholesale from the minimum quantity, F-keys, discount, charge,
+  change, walk-in must pay in full, credit to a customer, Ctrl+P print, bill tabs) and the share panel (24 checks).
 - `scripts/e2e/logo-signature.mjs` uploads a logo and a signature photo through the real Settings › Business boxes and
   checks both print on A4, A5, 80 mm and 58 mm (run shop-tour.mjs first; it uses that clothing shop).
 - Barcodes/QR were verified by reading rendered labels with OpenCV; the QR encoder was checked for all 40 versions
@@ -136,6 +140,8 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 | Batch / dates / model / size / serial on lines | `shared/itemFields.ts`, `document_line.details`, `screens/settings/ItemFieldsTab.tsx` |
 | Transport, PO, time, profit, own fields | `shared/features.ts`, `document.extra`, `party.extra`, `item.extra`, `screens/settings/FeaturesTab.tsx`, `components/OwnFields.tsx` |
 | Grow: posters, catalogue, Google profile | `shared/posters.ts` (templates, own CSS art, en/hi/ta text), `shared/share.ts` (catalogue HTML, WhatsApp texts and wa.me links), `main/share.ts` (PNG via offscreen window, clipboard, PDF, safe link opening), `screens/grow/GrowPage.tsx` |
+| Counter billing (POS) | `shared/pos.ts` (prices incl. wholesale, totals, change, the sale it saves as; tested in `services/pos.test.ts`), `screens/pos/PosPage.tsx` (bill tabs, scan/search, F2–F12 keys, Ctrl+P/S/T/W/B). Saves an ordinary sale invoice, so stock, ledger and GST work as for any bill |
+| Sharing a bill | share panel in `screens/sales/SalesPage.tsx` (WhatsApp, Gmail, mail app, text message, PDF, thermal and sheet print), `components/ShareModal.tsx`, `shareBill` in `main/ipc.ts`; links from `shared/share.ts` |
 | WhatsApp from bills and parties | `components/WhatsAppModal.tsx`, `shareBillOnWhatsApp` in `main/ipc.ts` (PDF to Documents\Billing App\Shared, then wa.me) |
 
 ## Not built yet
