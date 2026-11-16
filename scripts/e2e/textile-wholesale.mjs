@@ -78,9 +78,7 @@ await setQty(`Shirt M ${sfx}`, 'abc')
 check((await evaluate(`document.querySelector('input[aria-label="Quantity of Shirt M ${sfx}"]').value`)) === '14', 'POS: a typed quantity that is not a number is ignored (stays 14)')
 
 // Tax-inclusive saree, wholesale from 6.
-await key('w', { ctrlKey: true }).catch(() => {})
-await sleep(300)
-await evaluate(`window.confirm = () => true`)
+await evaluate(`window.confirm = () => true`) // closing a bill with items asks first; answer yes
 await key('w', { ctrlKey: true })
 await sleep(300)
 await scan(saree.barcode)
