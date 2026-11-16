@@ -384,3 +384,6 @@ who hosts it and pays; one owner login per business and how staff sign in; wheth
 and syncs later (recommended: every row already has a UUID and `updated_at`; bills would sync as whole documents, with
 the server refusing a bill number already used); what happens when two places change the same party. Until then the
 second backup folder is the safe way to have the data in two places.
+
+The full plan, options (backup folder, read-only website, full two-way website), risks, costs and the decisions
+needed are in `docs/WEBSITE-PLAN.md`.
