@@ -71,7 +71,13 @@ conflict rules in the table above.
   owner pays.
 - A domain name (about ₹800 a year) and an email service for sign-in codes.
 
-## Decisions needed
+## Decisions made (16 November 2026)
+
+- The website starts as **view only** (option B). Full billing on the website (option C) is not planned.
+- **Hosting is not decided yet.** Nothing is built until it is: the server's address, account and bill must belong to the
+  owner (or a company the owner chooses).
+
+## Decisions still needed
 
 1. **What should the website do first?** View only (B), or billing too (C).
 2. **Who hosts it?** The owner's own cloud account (cheapest, owner pays and controls), or a managed host.
