@@ -58,3 +58,10 @@ function staffArgs(db: DB, _user: AuthUser, method: string, args: unknown[]): vo
     if (input?.direction !== 'in') throw new UserError(NOT_OWNER)
   }
 }
+
+/** The same staff limits for the website, where the role comes from the website account instead of the business file. */
+export function checkRole(db: DB, role: AuthUser['role'], method: string, args: unknown[]): void {
+  if (role === 'owner') return
+  if (!STAFF.has(method)) throw new UserError(NOT_OWNER)
+  staffArgs(db, { id: '', name: '', username: '', role }, method, args)
+}

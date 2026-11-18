@@ -10,3 +10,4 @@ dist/
 e2e-out/
 e2e-profile/
 __pycache__/
+web-data/

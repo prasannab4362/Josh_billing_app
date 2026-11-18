@@ -2,6 +2,9 @@
 // cells, which is all the import templates need. An .xlsx file is a ZIP of XML parts.
 import { inflateRawSync } from 'node:zlib'
 
+/** Most a workbook may unpack to. */
+const MAX_UNZIPPED = 200 * 1024 * 1024
+
 export type Cell = string | number | boolean | null
 export type Row = Cell[]
 
@@ -37,6 +40,9 @@ export function unzip(zip: Buffer): Map<string, Buffer> {
   const count = zip.readUInt16LE(eocd + 10)
   let p = zip.readUInt32LE(eocd + 16)
   const out = new Map<string, Buffer>()
+  // A small file that unpacks to gigabytes (a "zip bomb") must not fill the memory.
+  let total = 0
+  if (count > 2000) throw new Error('too many parts in the zip file')
   for (let n = 0; n < count; n++) {
     if (zip.readUInt32LE(p) !== 0x02014b50) throw new Error('damaged zip file')
     const method = zip.readUInt16LE(p + 10)
@@ -51,8 +57,18 @@ export function unzip(zip: Buffer): Map<string, Buffer> {
     const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28)
     const data = zip.subarray(start, start + compSize)
     if (method === 0) out.set(name, Buffer.from(data))
-    else if (method === 8) out.set(name, inflateRawSync(data))
-    else throw new Error(`unsupported zip compression ${method}`)
+    else if (method === 8) {
+      let part: Buffer
+      try {
+        part = inflateRawSync(data, { maxOutputLength: MAX_UNZIPPED - total })
+      } catch (e) {
+        const tooBig = e instanceof RangeError || (e as { code?: string })?.code === 'ERR_BUFFER_TOO_LARGE'
+        throw new Error(tooBig ? 'the file is too large when unpacked (over 200 MB)' : 'damaged zip file')
+      }
+      out.set(name, part)
+    } else throw new Error(`unsupported zip compression ${method}`)
+    total += out.get(name)!.length
+    if (total > MAX_UNZIPPED) throw new Error('the file is too large when unpacked (over 200 MB)')
   }
   return out
 }

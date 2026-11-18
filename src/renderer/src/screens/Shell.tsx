@@ -14,6 +14,9 @@ import { CashBankPage } from './cashbank/CashBankPage'
 import { SettingsPage } from './settings/SettingsPage'
 import { GrowPage } from './grow/GrowPage'
 import { PosPage } from './pos/PosPage'
+import { STAFF_PAGES } from '@shared/auth'
+import { isWeb } from '../web/client'
+import { AccountMenu, useAccount } from '../web/WebGate'
 
 interface NavEntry {
   page: Page
@@ -106,6 +109,21 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [theme, setThemeState] = useState<Theme>(getTheme)
   const menuRef = useRef<HTMLDivElement>(null)
+  // On the website, staff see only the pages they may use (the server refuses the rest anyway).
+  const account = useAccount()
+  const isStaff = isWeb && account?.me.role === 'staff'
+  const staffPages: readonly string[] = STAFF_PAGES
+  // Wait until the server has said this person's role in this business, so staff never load an owner page.
+  const pageReady = !isWeb || (account?.me.businessId === business.id && (!isStaff || staffPages.includes(page)))
+  const nav = isStaff ? NAV.map((g) => ({ ...g, items: g.items.filter((n) => staffPages.includes(n.page)) })).filter((g) => g.items.length) : NAV
+  useEffect(() => {
+    account?.refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business.id])
+  useEffect(() => {
+    if (isStaff && !staffPages.includes(page)) setPage('Sale')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaff, page])
   const newRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -201,7 +219,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
             <small>GST · STOCK · ACCOUNTS</small>
           </span>
         </div>
-        {NAV.map((g) => (
+        {nav.map((g) => (
           <div key={g.group} style={{ display: 'contents' }}>
             <div className="nav-group">{g.group}</div>
             {g.items.map((n) => (
@@ -223,7 +241,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
             <span className="avatar small">{business.name.slice(0, 1).toUpperCase()}</span>
             <div>
               <b>{business.name}</b>
-              <small>{place || 'Works offline · data on this computer'}</small>
+              <small>{place || (isWeb ? 'Online · signed in' : 'Works offline · data on this computer')}</small>
             </div>
           </div>
           <button className="nav" onClick={toggleCollapsed} title={collapsed ? 'Expand the sidebar' : undefined}>
@@ -286,6 +304,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
               </div>
             )}
           </div>
+          {isWeb && <AccountMenu />}
           <div className="switcher" ref={menuRef}>
             <button className="switcher-btn" onClick={() => setMenuOpen((o) => !o)} title="Switch business">
               <span className="avatar small grad">{business.name.slice(0, 1).toUpperCase()}</span>
@@ -319,6 +338,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
           </div>
         </header>
         <main className="content">
+          {pageReady && (<>
           {page === 'Dashboard' && <Dashboard key={k('dash')} business={business} go={go} />}
           {page === 'Parties' && <PartiesPage key={k('parties')} openId={target.open?.id ?? null} startNew={!!target.open?.new} />}
           {page === 'Items' && <ItemsPage key={k('items')} startNew={!!target.open?.new} />}
@@ -333,6 +353,7 @@ export function Shell({ business, onBusinessChange, onSwitch, onCreateNew, onClo
           {page === 'Reports' && <ReportsPage key={k('reports')} business={business} initial={target.open?.id as ReportKey | undefined} go={go} />}
           {page === 'Grow' && <GrowPage key={k('grow')} business={business} />}
           {page === 'Settings' && <SettingsPage business={business} onBusinessChange={onBusinessChange} />}
+          </>)}
         </main>
       </div>
     </div>

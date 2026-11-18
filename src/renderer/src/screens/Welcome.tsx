@@ -3,6 +3,8 @@ import type { Business, BusinessSummary } from '@shared/models'
 import { api, errorMessage } from '../api'
 import { Banner } from '../components/Field'
 import { Icon } from '../components/Icon'
+import { isWeb } from '../web/client'
+import { AccountMenu } from '../web/WebGate'
 
 interface Props {
   businesses: BusinessSummary[]
@@ -32,7 +34,7 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
     try {
       const info = await api.chooseBackupFile()
       if (!info) return
-      if (!window.confirm(`Open the backup of ${info.businessName} (${info.invoices} invoices, ${info.parties} parties) as a business on this computer?`)) return
+      if (!window.confirm(`Open the backup of ${info.businessName} (${info.invoices} invoices, ${info.parties} parties) as a business ${isWeb ? 'here' : 'on this computer'}?`)) return
       setBusy('backup')
       onOpened(await api.importBackup(info.path))
     } catch (e) {
@@ -45,9 +47,14 @@ export function Welcome({ businesses, onOpened, onCreate }: Props) {
   return (
     <div className="center-page">
       <div className="welcome">
+        {isWeb && <div className="welcome-account"><AccountMenu /></div>}
         <div className="welcome-mark"><span className="brand-mark">J</span></div>
         <h1>Josh Books</h1>
-        <p className="muted">GST billing, stock and accounts — works fully offline, your data stays on this computer.</p>
+        <p className="muted">
+          {isWeb
+            ? 'GST billing, stock and accounts. Open a business, create one, or bring in a backup from the desktop app.'
+            : 'GST billing, stock and accounts — works fully offline, your data stays on this computer.'}
+        </p>
         {error && <Banner kind="error">{error}</Banner>}
 
         {businesses.length > 0 && (

@@ -8,6 +8,8 @@ export function openDatabase(path: string, migrations: Migration[] = defaultMigr
   const db = new Database(path)
   try {
     db.pragma('foreign_keys = ON')
+    // Never run SQL functions from inside the file's own schema (views, triggers): a file may come from elsewhere.
+    db.pragma('trusted_schema = OFF')
     if (path !== ':memory:') {
       db.pragma('journal_mode = WAL')
       // FULL: a saved bill survives a power cut or a crash the moment the save returns.

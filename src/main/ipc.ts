@@ -33,6 +33,7 @@ import { listMovements } from './services/stock'
 import { createTaxRate, listTaxRates, setTaxRateActive } from './services/taxRates'
 import { createUnit, deleteUnit, listUnits } from './services/units'
 import { UserError } from './util'
+import { catalogueItems as sharedCatalogueItems, coreHandlers, printData as sharedPrintData } from './coreHandlers'
 import { listAudit } from './services/auditLog'
 import { gstr1, gstr3b } from './services/gstReturns'
 import { gstr1Json } from '@shared/gstr1Json'
@@ -95,51 +96,11 @@ export function createHandlers(session: Session): BillingApi {
     if (typeof p !== 'string' || !approvedBackups.has(resolve(p).toLowerCase())) throw new UserError('Choose the backup file again')
     return p
   }
-  // The party's own field values; none when the party has since been deleted.
-  const partyFieldsOf = (id: string | null): string[] | null => {
-    if (!id) return null
-    try {
-      return getParty(db(), id).customFields ?? null
-    } catch {
-      return null
-    }
-  }
-  // Items for posters and the catalogue, in the order asked: price with GST (what the customer pays) and photo.
-  const catalogueItems = (ids: string[]): (CatalogueItem & { id: string })[] => {
-    if (!Array.isArray(ids) || ids.length > 1000) throw new UserError('Choose at most 1000 items')
-    const registered = getPreferences(db()).gstRegistered
-    const rates = new Map(listTaxRates(db()).map((r) => [r.id, r]))
-    const byId = new Map(listItems(db()).map((i) => [i.id, i]))
-    return ids.flatMap((id) => {
-      const i = byId.get(id)
-      if (!i) return []
-      const r = i.taxRateId ? rates.get(i.taxRateId) : undefined
-      return [{
-        id, name: i.name, description: i.description, category: i.category, unit: i.baseUnitShort,
-        price: labelPrice(i.salePrice, i.priceIncludesTax, r?.rateBp ?? 0, r?.cessBp ?? 0, registered),
-        mrp: i.mrp, photo: i.hasImage ? getItemImage(db(), id) : null
-      }]
-    })
-  }
-  const printData = (type: BillType, id: string, paper?: PaperSize | null): InvoicePrintData => {
-    const prefs = getPreferences(db())
-    if (paper && !PAPER_SIZES.includes(paper)) throw new UserError('Unknown paper size')
-    const invoice = getBill(db(), type, id)
-    return {
-      type,
-      invoice,
-      partyCustomFields: partyFieldsOf(invoice.partyId),
-      business: getBusiness(db()),
-      bank: printAccount(db()),
-      paper: paper || prefs.paperSize,
-      gstRegistered: prefs.gstRegistered,
-      design: getPrintSettings(db()),
-      itemFields: getItemFields(db()),
-      features: getFeatures(db())
-    }
-  }
+  const printData = (type: BillType, id: string, paper?: PaperSize | null): InvoicePrintData => sharedPrintData(db(), type, id, paper)
+  const catalogueItems = (ids: string[]) => sharedCatalogueItems(db(), ids)
 
   return {
+    ...coreHandlers(db),
     getAppInfo: async () => ({
       appVersion: app.getVersion(),
       dbPath: session.dbPath,
@@ -208,51 +169,10 @@ export function createHandlers(session: Session): BillingApi {
       return business
     },
 
-    setBusinessImage: async (kind, dataUrl) => setBusinessImage(db(), kind, dataUrl),
-
-    getPreferences: async () => getPreferences(db()),
-    savePreferences: async (changes) => savePreferences(db(), changes),
-
-    listSeries: async () => {
-      const fy = fyFor(todayLocal(), getBusiness(db()).fyStartMonth)
-      return { fy, series: listSeries(db(), fy) }
-    },
-    updateSeries: async (id, update) => updateSeries(db(), id, update),
-
-    listTaxRates: async () => listTaxRates(db()),
-    createTaxRate: async (input) => createTaxRate(db(), input),
-    setTaxRateActive: async (id, active) => setTaxRateActive(db(), id, active),
-
-    listUnits: async () => listUnits(db()),
-    createUnit: async (name, short) => createUnit(db(), name, short),
-    deleteUnit: async (id) => deleteUnit(db(), id),
-
-    listParties: async () => listParties(db()),
-    getParty: async (id) => getParty(db(), id),
-    createParty: async (input) => createParty(db(), input),
-    updateParty: async (id, input) => updateParty(db(), id, input),
-    setPartyActive: async (id, active) => setPartyActive(db(), id, active),
-    deleteParty: async (id) => deleteParty(db(), id),
-    listPartyGroups: async () => listPartyGroups(db()),
-
-    listItems: async () => listItems(db()),
-    getItem: async (id) => getItem(db(), id),
-    createItem: async (input) => createItem(db(), input),
-    addItemSizes: async (itemId, sizes) => addItemSizes(db(), itemId, sizes),
-    updateItem: async (id, input) => updateItem(db(), id, input),
-    setItemActive: async (id, active) => setItemActive(db(), id, active),
-    deleteItem: async (id) => deleteItem(db(), id),
-    listItemCategories: async () => listItemCategories(db()),
-    listStockMovements: async (itemId) => listMovements(db(), itemId),
-    getItemImage: async (id) => getItemImage(db(), id),
-    generateBarcode: async () => generateBarcode(db()),
-    assignBarcodes: async (ids) => assignBarcodes(db(), ids),
-    previewLabels: async (req) => labelPage(db(), req),
     printLabels: async (req) => printLabels(labelPage(db(), req)),
     saveLabelsPdf: async (req) => saveLabelsPdf(labelPage(db(), req)),
     savePoster: async (html, size, name) => savePoster(html, size, name),
     copyPoster: async (html, size) => copyPoster(html, size),
-    catalogueItems: async (ids) => catalogueItems(ids),
     saveCatalogue: async (ids, options) => {
       const b = getBusiness(db())
       return savePdfAs(catalogueHtml(catalogueItems(ids), options, b), `${b.name} ${options.title || 'catalogue'}`)
@@ -284,13 +204,6 @@ export function createHandlers(session: Session): BillingApi {
     },
     openWhatsApp: async (phone, text) => openSafe(whatsappLink(phone, text)),
     openWeb: async (url) => openSafe(url),
-    getFeatures: async () => getFeatures(db()),
-    saveFeatures: async (s) => saveFeatures(db(), s),
-    getItemFields: async () => getItemFields(db()),
-    saveItemFields: async (s) => saveItemFields(db(), s),
-    getPrintSettings: async () => getPrintSettings(db()),
-    savePrintSettings: async (s) => savePrintSettings(db(), s),
-    previewPrintSettings: async (s, paper) => samplePrintHtml(db(), s, paper),
     saveImportTemplate: async (kind) => {
       const path = await askXlsxPath(kind === 'items' ? 'Items import template' : 'Parties import template')
       if (path) writeFileSync(path, writeXlsx(templateSheets(kind)))
@@ -319,52 +232,9 @@ export function createHandlers(session: Session): BillingApi {
       }
       return previewImport(db(), kind, rows, basename(r.filePaths[0]))
     },
-    commitImport: async (token) => commitImport(db(), token),
-    bulkUpdateItems: async (changes) => bulkUpdateItems(db(), changes),
-    listLabelSizes: async () => listLabelSizes(db()),
-    saveLabelSize: async (id, name, size) => saveLabelSize(db(), id, name, size),
-    deleteLabelSize: async (id) => deleteLabelSize(db(), id),
-    getLabelDesign: async () => getLabelDesign(db()),
-    getCodeFormat: async () => getCodeFormat(db()),
-    saveCodeFormat: async (f) => saveCodeFormat(db(), f),
-    saveLabelDesign: async (d) => saveLabelDesign(db(), d),
 
-    listAccounts: async () => listAccounts(db()),
-
-    listBills: async (type, filter) => listBills(db(), type, filter ?? {}),
-    getBill: async (type, id) => getBill(db(), type, id),
-    nextBillNumber: async (type, date) => nextBillNumber(db(), type, date),
-    saveBill: async (type, id, input) => saveBill(db(), type, id, input),
-    deleteBill: async (type, id) => deleteBill(db(), type, id),
-    getBillPrint: async (type, id, paper) => printData(type, id, paper),
     exportBillPdf: async (type, id, paper) => exportPdf(printData(type, id, paper)),
     printBill: async (type, id, paper) => printInvoice(printData(type, id, paper)),
-
-    createAdjustment: async (input) => createAdjustment(db(), input),
-    deleteAdjustment: async (id) => deleteAdjustment(db(), id),
-    stockSummary: async (asOf) => stockSummary(db(), asOf),
-
-    listPayments: async (filter) => listPayments(db(), filter ?? {}),
-    getPayment: async (id) => getPayment(db(), id),
-    nextPaymentNumber: async (direction, date) => nextPaymentNumber(db(), direction, date),
-    openDocuments: async (partyId, direction, paymentId) => openDocuments(db(), partyId, direction, paymentId),
-    savePayment: async (id, input) => savePayment(db(), id, input),
-    deletePayment: async (id) => deletePayment(db(), id),
-
-    partyStatement: async (partyId, period) => partyStatement(db(), partyId, period ?? {}),
-    accountStatement: async (accountId, period) => accountStatement(db(), accountId, period ?? {}),
-
-    listAccountsWithBalance: async () => listAccountsWithBalance(db()),
-    createAccount: async (input) => createAccount(db(), input),
-    updateAccount: async (id, input) => updateAccount(db(), id, input),
-    deactivateAccount: async (id) => deactivateAccount(db(), id),
-    createTransfer: async (input) => createTransfer(db(), input),
-    deleteTransfer: async (id) => deleteTransfer(db(), id),
-
-    listExpenses: async (period) => listExpenses(db(), period ?? {}),
-    saveExpense: async (id, input) => saveExpense(db(), id, input),
-    deleteExpense: async (id) => deleteExpense(db(), id),
-    listExpenseCategories: async () => listExpenseCategories(db()),
 
     backupNow: async () => {
       const name = `${getBusiness(db()).name} backup ${todayLocal()}`.replace(/[\\/:*?"<>|]+/g, '-')
@@ -390,7 +260,6 @@ export function createHandlers(session: Session): BillingApi {
       const local = await session.backupTo(join(dir, `auto-${todayLocal()}.db`))
       return { local, mirror: await session.mirrorLatest() }
     },
-    checkDatabase: async () => databaseProblems(db()),
     listBackups: async () => {
       const list = session.listBackups()
       for (const f of list) approve(f.path)
@@ -413,12 +282,6 @@ export function createHandlers(session: Session): BillingApi {
       await shell.openPath(dir)
     },
 
-    listBin: async () => listBin(db()),
-    restoreFromBin: async (kind, id) => restoreFromBin(db(), kind, id),
-    listAudit: async (filter) => listAudit(db(), filter ?? {}),
-
-    gstr1: async (period) => gstr1(db(), period ?? {}),
-    gstr3b: async (period) => gstr3b(db(), period ?? {}),
     exportGstr1Json: async (period) => {
       const g = gstr1(db(), period ?? {})
       if (!g.gstin) throw new UserError('Add your business GSTIN in Settings › Business first')
@@ -430,13 +293,6 @@ export function createHandlers(session: Session): BillingApi {
       return r.filePath
     },
 
-    dashboard: async () => dashboard(db()),
-    billRegister: async (type, period) => billRegister(db(), type, period ?? {}),
-    dayBook: async (period) => dayBook(db(), period ?? {}),
-    ageing: async (side) => ageing(db(), side),
-    profitLoss: async (period) => profitLoss(db(), period ?? {}),
-    gstSummary: async (period) => gstSummary(db(), period ?? {}),
-    itemSales: async (period) => itemSales(db(), period ?? {}),
     exportReport: async (doc, format) => exportReport(doc, getBusiness(db()).name, format),
     printReport: async (doc) => printReport(doc, getBusiness(db()).name)
   }

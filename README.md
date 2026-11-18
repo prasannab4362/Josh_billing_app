@@ -3,6 +3,9 @@
 An offline GST billing, inventory and accounts app for Indian small businesses. It runs on Windows as a desktop app
 (Electron), and each business is kept in its own SQLite file on the computer, with automatic daily backups.
 
+The same app also runs as a **website**: people sign in with email and password, each account sees only its own
+businesses, and owners add staff logins. See [docs/WEBSITE.md](docs/WEBSITE.md).
+
 ## Features
 
 - **Counter billing (POS):** scan or search items, wholesale price from the minimum quantity, function keys for
@@ -40,6 +43,8 @@ npm test           # unit tests (run inside Electron's Node)
 npm run typecheck
 npm run build      # production build in out/
 npm run dist:win   # Windows x64 installer in dist/
+npm run build:web  # the website: screens in out/renderer, server in out/server
+npm run web        # run the website on http://localhost:8080
 ```
 
 ## Windows test installer

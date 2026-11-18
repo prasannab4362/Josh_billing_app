@@ -22,6 +22,7 @@ npm run dev          # app with live reload
 npm test             # vitest, run inside Electron's Node (ELECTRON_RUN_AS_NODE) so better-sqlite3 loads
 npm run typecheck    # both tsconfigs (node + web)
 npm run build        # out/
+npm run build:web    # the website too: out/renderer + out/server/index.cjs; npm run web starts it (docs/WEBSITE.md)
 ```
 
 Before you say a change is done, run `npm test`, `npm run typecheck` and `npm run build`. For screen changes,
@@ -40,11 +41,15 @@ src/main/            Electron main process (Node)
                      ledger, reports, gstReturns, imports, labels, printDesign, recycleBin, auditLog, ...)
   print.ts           print / PDF through hidden BrowserWindows
   xlsx.ts            own .xlsx (ZIP + XML) reader/writer and CSV reader
+  coreHandlers.ts    the API calls that only use the business database; shared by ipc.ts and the website
 src/preload/         exposes window.api (only the methods listed in API_METHODS)
+src/server/          the website (docs/WEBSITE.md): accounts.ts (email/password, sessions, members), pool.ts (open
+                     business files), handlers.ts (the API, with downloads/prints/links as WebEffect), app.ts (HTTP)
 src/shared/          used by main and renderer: models, ipc contract, GST maths (tax.ts), money/qty,
                      billTypes, invoiceHtml (the printed invoice), labels, barcode, qr, reportDoc,
                      printSettings, itemFields, features, imports, validation, states, gstin
-src/renderer/src/    React: App/Shell, screens/<area>/..., components/, api.ts, styles.css
+src/renderer/src/    React: App/Shell, screens/<area>/..., components/, api.ts, styles.css; web/ = the browser client
+                     (client.ts) and sign-in, account menu and team (WebGate.tsx)
 scripts/e2e/         drive the running app over CDP (see its README)
 docs/business-guides/ one guide per trade (wholesale, retail, grocery, fish market, services, medical,
                      electrical, stationery, jewellery, gold covering), checked by scripts/e2e/business-check.mjs
@@ -99,6 +104,11 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
   `services/textile.test.ts` checks counter and saved invoice agree to the paisa over 150 random bills.
 - **CSS class names are shared across screens:** before adding a generic class (`link`, `card`, `tab`…) grep
   `styles.css`; a clash once wiped the dashboard cards' padding. `scripts/e2e/ui-check.mjs` finds such damage.
+- **Desktop and website share one set of rules.** A new API call that only uses the database goes in
+  `main/coreHandlers.ts`; one that needs windows, files or printing needs a desktop version in `main/ipc.ts` AND a website
+  version in `server/handlers.ts` (return a `WebEffect` to download, print or open; take files as uploads). New calls
+  are owner-only on the website unless listed in `STAFF_METHODS`. Nothing in `main/` that the server uses may import
+  `electron` (the server bundle is checked for it). Screens check `isWeb` (`web/client.ts`) for the few places that differ.
 - **Nothing is sent from the app.** WhatsApp opens through `https://wa.me/` links with the text filled in; the user
   presses Send. `openSafe` in `src/main/share.ts` only opens wa.me, Gmail's compose page, `mailto:` (address, subject, body only),
   `sms:` (an Indian mobile and body only), Google Business and Google review links (`isSafeExternalUrl` in
@@ -117,7 +127,10 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 - Unit tests sit next to the code (`*.test.ts`) and use an in-memory database: `openDatabase(':memory:')`, then
   `setupBusiness(...)` with `EMPTY_TEST_PROFILE` from `src/shared/testFixtures.ts`. Test GSTINs must have a valid
   check digit (use `gstinCheckChar`).
-- 296 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- 312 tests at the time of writing. Add tests for every rule you add, including the refusals.
+- The website: `src/server/web.test.ts` runs the real HTTP server (sign-up, sign-in, lockout, cross-site calls, one account
+  kept from another, staff limits, downloads, backup upload) and `src/server/accounts.test.ts`. After screen changes also
+  try it in a browser: `npm run build:web && npm run web`, then http://localhost:8080 (data in `web-data/`).
 - End-to-end: `scripts/e2e/README.md`. Use a separate `--user-data-dir` so real data is never touched.
 - `scripts/e2e/business-check.mjs` sets up one test business per trade and checks its everyday bills (totals, GST
   split, stock, payments, PDF). Run it after changes to billing, tax, units, stock or printing, and update the
@@ -167,8 +180,8 @@ docs/setup-guide/     customer setup guide with screenshots: barcodes, QR, label
 
 ## Not built yet
 
-Online store, ads and Google sign-in (need servers), a website version and live sync between devices (needs a hosted
-server and the owner's decisions: see DESIGN.md §9), WhatsApp linked-device sending, import from Tally, reverse charge, composition scheme, TCS/TDS,
+Online store, ads and Google sign-in (need servers), live sync between the desktop and the website, password emails
+for the website, WhatsApp linked-device sending, import from Tally, reverse charge, composition scheme, TCS/TDS,
 free quantity, stock per batch, multi-currency, WhatsApp/SMS sending, e-invoice (IRN). Ask the owner before
 starting any of these; sync in particular needs decisions first.
 

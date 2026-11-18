@@ -59,7 +59,7 @@ export function listAudit(db: DB, filter: AuditFilter = {}, limit = 500): AuditE
     .prepare(
       `SELECT a.*, d.doc_type, d.number AS doc_number, d.category, p.name AS party_name, i.name AS item_name,
               y.number AS pay_number, y.direction AS pay_direction, b.name AS account_name, ai.name AS adj_item,
-              u.name AS user_name, lu.name AS user_label
+              COALESCE(u.name, CASE WHEN a.user_id LIKE 'web:%' THEN substr(a.user_id, 5) END) AS user_name, lu.name AS user_label
        FROM audit_log a
        LEFT JOIN document d ON a.entity IN ('document', 'expense') AND d.id = a.entity_id
        LEFT JOIN party p ON a.entity = 'party' AND p.id = a.entity_id

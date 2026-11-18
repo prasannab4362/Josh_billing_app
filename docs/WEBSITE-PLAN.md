@@ -77,6 +77,12 @@ conflict rules in the table above.
 - **Hosting is not decided yet.** Nothing is built until it is: the server's address, account and bill must belong to the
   owner (or a company the owner chooses).
 
+## Built (18 November 2026)
+
+The owner asked for the app itself as a website with email and password sign-in. Built: the **full app** in the
+browser (not only a view), open sign-up where each account owns its businesses, staff logins added by the owner, and
+**separate data** moved by backup files (no live sync). See `docs/WEBSITE.md`. Hosting is still to be chosen.
+
 ## Decisions still needed
 
 1. **What should the website do first?** View only (B), or billing too (C).
